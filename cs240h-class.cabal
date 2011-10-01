@@ -1,0 +1,25 @@
+Name:                cs240h-class
+Version:             0.1
+Synopsis:            Labs for Stanford CS240H, Fall 2011
+License:             BSD3
+License-file:        LICENSE
+Author:              Greg Horn
+Maintainer:          ghorn@stanford.edu
+Category:            Text
+Build-type:          Simple
+Cabal-version:       >=1.2
+
+
+Executable lab1
+  -- .hs or .lhs file containing the Main module.
+  Main-is:           Lab1.hs
+  
+  -- Packages needed in order to build this package.
+  Build-depends:     base, text, containers
+  
+  -- Modules not exported by this package.
+  -- Other-modules:       
+  
+  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
+  -- Build-tools:         
+  
