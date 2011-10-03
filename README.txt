@@ -1,4 +1,5 @@
 Labs for Stanford CS240H, Fall 2011.
+Author: Greg Horn
 
 ###### Building and running Lab1 ######
 
