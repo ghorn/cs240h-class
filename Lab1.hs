@@ -10,6 +10,7 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Map as M
 import Data.List(sortBy)
+import Control.Monad(when)
 
 data WordCount = WordCount { wcString :: T.Text
                            , wcStringLength :: Int
@@ -49,7 +50,7 @@ parseHugeTextGob :: T.Text -> [T.Text]
 parseHugeTextGob raw = goodWords
   where
     -- make all this text lowercase and split by anything that's not an apostrophe or ['a'..'z']
-    wordsWithEmpties = T.split (flip notElem ('\'':['a'..'z'])) $ T.toLower raw
+    wordsWithEmpties = T.split (`notElem` ('\'':['a'..'z'])) $ T.toLower raw
 
     -- this leaves in empty objects, e.g. "ab,c,,d" would become ["ab","c","","d"]
     wordsWithoutEmpties = filter (not . T.null) wordsWithEmpties
@@ -60,8 +61,8 @@ parseHugeTextGob raw = goodWords
       where
         removeNonInfix' :: T.Text -> T.Text
         removeNonInfix' txt
-          | T.isPrefixOf (T.pack "'") txt = removeNonInfix' (T.tail txt)
-          | T.isSuffixOf (T.pack "'") txt = removeNonInfix' (T.init txt)
+          | T.pack "'" `T.isPrefixOf` txt = removeNonInfix' (T.tail txt)
+          | T.pack "'" `T.isSuffixOf` txt = removeNonInfix' (T.init txt)
           | otherwise                     = txt
 
 -- count the words
@@ -101,16 +102,15 @@ printHistogram wordCounts = do
       printHistogramEntry wc = do 
         let
           -- number of spaces between word and histogram bar
-          spaces = replicate (lengthOfLongestWord - (wcStringLength wc) + 1) ' '
+          spaces = replicate (lengthOfLongestWord - wcStringLength wc + 1) ' '
           -- how long to make the histogram bar
-          scaledInt = ((wcNumInstances wc) * charsLeftForHistogram) `div` numInstancesOfMostCommonWord
+          scaledInt = (wcNumInstances wc * charsLeftForHistogram) `div` numInstancesOfMostCommonWord
           -- the bar itself
           bar = take scaledInt (cycle magicString)
         -- print out the entry unless there are so few instances that they
         -- don't warrant even a single character of histogram
-        if length bar > 0
-          then do TIO.putStr (wcString wc)
-                  putStrLn $ spaces ++ bar
-          else return ()
+        Control.Monad.when (length bar > 0) $
+          do TIO.putStr (wcString wc)
+             putStrLn $ spaces ++ bar
 
   mapM_ printHistogramEntry wordCounts
