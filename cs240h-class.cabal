@@ -12,7 +12,7 @@ Cabal-version:       >=1.2
 
 Executable lab1
   -- .hs or .lhs file containing the Main module.
-  Main-is:           Lab1.hs
+  Main-is:           Lab1/Lab1.hs
   
   -- Packages needed in order to build this package.
   Build-depends:     base, text, containers
