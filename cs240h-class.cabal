@@ -11,28 +11,13 @@ Cabal-version:       >=1.2
 
 
 Executable lab1
-  -- .hs or .lhs file containing the Main module.
   Main-is:           Lab1/Lab1.hs
-  
-  -- Packages needed in order to build this package.
   Build-depends:     base, text, containers
-  
-  -- Modules not exported by this package.
-  -- Other-modules:       
-  
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
-  
 
 Executable lab2
-  -- .hs or .lhs file containing the Main module.
   Main-is:           Lab2/Lab2.hs
-
-  -- Packages needed in order to build this package.
   Build-depends:     gloss
-  
-  -- Modules not exported by this package.
-  -- Other-modules:       
-  
-  -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
+
+Executable drawHilbertCurve
+  Main-is:           Lab2/DrawHilbertCurve.hs
+  Build-depends:     gloss
