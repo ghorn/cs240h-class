@@ -10,6 +10,8 @@ Build-type:          Simple
 Cabal-version:       >=1.2
 
 
+Extra-source-files: Lab2/csrc
+
 Executable lab1
   Main-is:           Lab1/Lab1.hs
   Build-depends:     base, text, containers
@@ -21,3 +23,14 @@ Executable lab2
 Executable drawHilbertCurve
   Main-is:           Lab2/DrawHilbertCurve.hs
   Build-depends:     gloss
+
+Executable runTests
+  Main-is:           Lab2/RunTests.hs
+  Ghc-options:       -O2
+  Build-depends:     QuickCheck, random
+
+  C-sources:         Lab2/csrc/wikipediaHilbertCurve.c
+  Include-dirs:      Lab2/csrc
+  Includes:          wikipediaHilbertCurve.h
+  Install-includes:  wikipediaHilbertCurve.h
+  Cc-options:        -Wall -Werror
