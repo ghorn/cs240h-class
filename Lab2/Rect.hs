@@ -10,7 +10,6 @@ module Lab2.Rect( Rect(..)
 
 import Graphics.Gloss
 import Debug.Trace
-import Data.Maybe
 
 data Rect = Rect { rectMinX :: Int
                  , rectMaxX :: Int
@@ -52,8 +51,8 @@ r2p maxCoord imageSize rect = color aquamarine $ lineLoop $ coords
 
 
 
-stringToRect :: (String, Int) -> Maybe Rect
-stringToRect (str, idx) = safeRect
+stringToRect :: Bool -> (String, Int) -> Rect
+stringToRect verbose (str, idx) = safeRect
   where
     coords@[x1,y1,x2,y2,x3,y3,x4,y4] = (read $ '[':str++"]")
     
@@ -70,25 +69,27 @@ stringToRect (str, idx) = safeRect
                 }
                       
     safeRect
-      | validCoords = Just rect
-      | otherwise   = trace errMsg Nothing
+      | verbose && (not validCoords) = trace warningMsg rect
+      | otherwise                    = rect
       where
-        errMsg = "Dropping invalid coordinates found on line "++show idx++
-                 ", diff: "++show worstErr++
-                 ", coords: "++show coords
+        warningMsg = "Fixing invalid coordinates found on line "++show idx++
+                     ", diff: "++show worstErr++
+                     ", coords: "++show coords
 
 
--- Take command line argument for filename to load.
+-- Take command line arguments
 -- Return list of rectangles.
--- Throw error if there is not exactly one command line argument.
--- Throw error if text file is not formatted as expected
+-- Throw error if badly formatted command line arguments.
+-- If verbose command line argument is found (-v), throw warnings for irregular rectangles
 loadRects :: [String] -> IO [Rect]
-loadRects args = do
-  let filename
-        | length args /= 1 = error "need exactly one command line argument (name of a text file to load)"
+loadRects args' = do
+  let verbose = "-v" `elem` args'
+      args = filter (/= "-v") args'
+      filename
+        | length args /= 1 = error "need exactly one command line argument for filename"
         | otherwise        = head args
   putStrLn $ "loading file \""++filename++"\""
   
   input <- readFile filename
 
-  return $ map fromJust $ filter isJust $ map stringToRect (zip (lines input) [1..])
+  return $ map (stringToRect verbose) (zip (lines input) [1..])
