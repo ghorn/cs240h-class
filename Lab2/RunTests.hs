@@ -4,30 +4,51 @@
 
 module Main where
 
---import Lab2.HilbertCurve
+import Lab2.HilbertCurve
 import qualified Lab2.WikipediaHilbertCurve as W
 import Test.QuickCheck
 
 
-data Mytest = Mytest Int Int deriving Show
-
 maxHilbertDim :: Int
 maxHilbertDim = 5
 
-instance Arbitrary Mytest where
+-- make a random hilbert dimension n and a random hilbert value within [0..2^(2*n)-1]
+data HilbertVal = HilbertVal Int Int deriving Show
+instance Arbitrary HilbertVal where
   arbitrary = do
     n' <- arbitrary
     d' <- arbitrary
     let n = (mod n' maxHilbertDim) + 1
-        d = mod d' (2^(n+1))
-    return $ Mytest n d
+        d = mod d' (2^(2*n))
+    return $ HilbertVal n d
 
-t_d2xy_xy2d :: Mytest -> Bool
-t_d2xy_xy2d (Mytest n d) = d == W.xy2d n (W.d2xy n d)
+-- make a random hilbert dimension n and random (x, y) coordinates both within [0..2^n-1]
+data HilbertXy = HilbertXy Int (Int, Int) deriving Show
+instance Arbitrary HilbertXy where
+  arbitrary = do
+    n' <- arbitrary
+    x' <- arbitrary
+    y' <- arbitrary
+    let n = (mod n' maxHilbertDim) + 1
+        x = mod x' (2^n)
+        y = mod y' (2^n)
+    return $ HilbertXy n (x,y)
 
 main :: IO ()
 main = do
-  quickCheck t_d2xy_xy2d
---  verboseCheck t_d2xy_xy2d
---  sample (arbitrary :: Gen Mytest)
+  putStr "make sure d2xy is the inverse of xy2d: "
+  quickCheck $ \(HilbertVal n d) -> d == W.xy2d n (W.d2xy n d)
+  
+  putStr "make sure xy2d is the inverse of d2xy: "
+  quickCheck $ \(HilbertXy n xy) -> xy == W.d2xy n (W.xy2d n xy)
+                   
+  putStr "make sure W.d2xy is the same as d2xy:  "
+  quickCheck $ \(HilbertVal n d) -> W.d2xy n d == d2xy n d
+  
+  putStr "make sure W.xy2d is the same as xy2d:  "
+  quickCheck $ \(HilbertXy n xy) -> W.xy2d n xy == xy2d n xy
+  
+  
+--  sample (arbitrary :: Gen HilbertVal)
+--  sample (arbitrary :: Gen HilbertXy)
   
