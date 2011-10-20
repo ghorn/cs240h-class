@@ -6,6 +6,7 @@ module Main where
 
 import System.Environment(getArgs)
 import Lab2.Rect
+import Lab2.HilbertRTree
 
 imageSize :: Num a => a
 imageSize = 500
@@ -15,4 +16,8 @@ main = do
   args <- getArgs
   rects <- loadRects args
   
-  drawRects rects imageSize
+  let fullHRTree = newHRTree rects
+  print fullHRTree
+  
+  
+--  drawRects rects imageSize

@@ -15,7 +15,13 @@ data Rect = Rect { rectMinX :: Int
                  , rectMaxX :: Int
                  , rectMinY :: Int
                  , rectMaxY :: Int
-                 } deriving Show
+                 }
+instance Show Rect where
+  show rect = "Rect("++
+              (show $ rectMinX rect)++","++
+              (show $ rectMaxX rect)++","++
+              (show $ rectMinY rect)++","++
+              (show $ rectMaxY rect)++")"
 
 rectDims :: Rect -> (Int, Int)
 rectDims rect = (rectMaxX rect - rectMinX rect, rectMaxY rect - rectMinY rect)
