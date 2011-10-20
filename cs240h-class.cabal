@@ -15,18 +15,21 @@ Extra-source-files: Lab2/csrc
 Executable lab1
   Main-is:           Lab1/Lab1.hs
   Build-depends:     base, text, containers
+  Ghc-options:       -O2 -dno-debug-output
 
 Executable lab2
   Main-is:           Lab2/Lab2.hs
   Build-depends:     gloss
+  Ghc-options:       -O2 -dno-debug-output
 
 Executable drawHilbertCurve
   Main-is:           Lab2/DrawHilbertCurve.hs
   Build-depends:     gloss
+  Ghc-options:       -O2 -dno-debug-output
 
 Executable runTests
   Main-is:           Lab2/RunTests.hs
-  Ghc-options:       -O2
+  Ghc-options:       -O2 -dno-debug-output
   Build-depends:     QuickCheck, random
 
   C-sources:         Lab2/csrc/wikipediaHilbertCurve.c
