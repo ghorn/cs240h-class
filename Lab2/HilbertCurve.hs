@@ -39,7 +39,10 @@ makeHilbertCurve n = map f [0..2^(2*n)-1]
 
 
 xy2d :: Int -> (Int, Int) -> Int
-xy2d n (x,y) = f (x,y) 0 ((2^n) `div` 2)
+xy2d n (x,y) 
+  | x >= 2^n || y >= 2^n || x < 0 || y < 0 = error $ "xy2d can't compute "++show (x,y)++
+                                             ", range is between 0 and "++show (2^n-1 :: Int)
+  | otherwise = f (x,y) 0 ((2^n) `div` 2)
   where
     f :: (Int, Int) -> Int -> Int -> Int
     f _ d 0 = d
@@ -55,7 +58,10 @@ xy2d n (x,y) = f (x,y) 0 ((2^n) `div` 2)
 
 
 d2xy :: Int -> Int -> (Int, Int)
-d2xy n d' = f (0,0) d' 1
+d2xy n d' 
+  | d' >= 2^(2*n) || d' < 0 = error $ "d2xy can't compute "++show d'++
+                              ", range is between 0 and "++show (2^(2*n)-1 :: Int)
+  | otherwise = f (0,0) d' 1
   where
     f :: (Int, Int) -> Int -> Int -> (Int, Int)
     f (x',y') d s 
