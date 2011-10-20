@@ -16,4 +16,4 @@ main = do
   let nLevels
         | length(args) > 0 = read (head args)
         | otherwise        = 3 :: Int
-  drawHilbertCurve imageSize $ makeHilbertCurve nLevels
+  drawHilbertCurve imageSize nLevels

@@ -5,6 +5,7 @@
 module Main where
 
 import Lab2.HilbertCurve
+import qualified Lab2.SlowHilbertCurve as S
 import qualified Lab2.WikipediaHilbertCurve as W
 import Test.QuickCheck
 
@@ -48,7 +49,10 @@ main = do
   putStr "make sure W.xy2d is the same as xy2d:  "
   quickCheck $ \(HilbertXy n xy) -> W.xy2d n xy == xy2d n xy
   
-  
+  -- compare new and old makeHibertCurve implementations
+  let testMakeHilberts nMax = and $ map (\n -> S.makeHilbertCurve n == makeHilbertCurve n) [1..nMax]
+  putStrLn $ "\nmakeHilbertCurve matches Slow.makeHilbertCurve?: " ++ (show $ testMakeHilberts 5)
+
 --  sample (arbitrary :: Gen HilbertVal)
 --  sample (arbitrary :: Gen HilbertXy)
   

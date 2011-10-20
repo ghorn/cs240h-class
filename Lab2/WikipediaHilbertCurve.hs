@@ -7,7 +7,7 @@ module Lab2.WikipediaHilbertCurve( d2xy
                                  , xy2d
                                  , makeHilbertCurve
                                  ) where
-import Lab2.HilbertCurve(HilbertCoord(..))
+import Lab2.HilbertCoord
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Marshal
