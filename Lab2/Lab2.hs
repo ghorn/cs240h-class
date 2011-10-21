@@ -19,5 +19,4 @@ main = do
   let fullHRTree = newHRTree rects
   print fullHRTree
   
-  
 --  drawRects rects imageSize
