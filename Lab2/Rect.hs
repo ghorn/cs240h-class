@@ -7,6 +7,7 @@ module Lab2.Rect( Rect(..)
                 , drawRects
                 , rectDims
                 , getMbr
+                , getMbrs
                 ) where
 
 import Graphics.Gloss
@@ -108,3 +109,8 @@ getMbr a b = Rect { rectMinX = min (rectMinX a) (rectMinX b)
                   , rectMaxX = max (rectMaxX a) (rectMaxX b)
                   , rectMaxY = max (rectMaxY a) (rectMaxY b)
                   }
+
+getMbrs :: [Rect] -> Rect
+getMbrs [] = error "can't getMbrs on empty list"
+getMbrs [r] = r
+getMbrs (x:xs) = getMbr x (getMbrs xs)

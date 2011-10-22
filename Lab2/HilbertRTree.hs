@@ -8,6 +8,7 @@ module Lab2.HilbertRTree( newHRTree
 
 import Lab2.Rect
 import Lab2.HilbertCurve(xy2d)
+import Lab2.Misc(evenlyDistribute)
 import Data.List(insertBy)
 import Debug.Trace
 
@@ -73,16 +74,15 @@ zipupOnce :: ZNonleaf -> ZNonleaf
 zipupOnce (ZNonleaf Nothing _ _) = error "this should probably return self"
 zipupOnce (ZNonleaf (Just oldParentNode) (lsibs, rsibs) focus) = newZNode
   where
-    ZNonleaf grandparent (parentLsibs, parentRsibs) parentFocus = oldParentNode
+    ZNonleaf grandparent (parentLsibs, parentRsibs) _ = oldParentNode
     newZNode = ZNonleaf grandparent (parentLsibs, parentRsibs) newNonleaf
       where
         newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
-                             , nlMbr      = newParentMbr
+                             , nlMbr      = getMbrs $ (map nlMbr allSiblings)
                              , children   = Nonleaves allSiblings
                              }
           where
             allSiblings = lsibs ++ (focus:rsibs)
-            newParentMbr = getMbr (nlMbr focus) (nlMbr parentFocus)
             newParentLhv
               | newParentLhvUnsafe /= nlLhv (last allSiblings) = error "hilbert out of order yo"
               | otherwise                                      = trace "hilbert in order yo" newParentLhvUnsafe
@@ -93,24 +93,54 @@ zipupOnce (ZNonleaf (Just oldParentNode) (lsibs, rsibs) focus) = newZNode
 zipupLeaf :: ZLeaf -> ZNonleaf
 zipupLeaf (ZLeaf oldParentNode (lsibs, rsibs) focus) = newZNode
   where
-    ZNonleaf grandparent (parentLsibs, parentRsibs) parentFocus = oldParentNode
+    ZNonleaf grandparent (parentLsibs, parentRsibs) _ = oldParentNode
     newZNode = ZNonleaf grandparent (parentLsibs, parentRsibs) newNonleaf
       where
         newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
-                             , nlMbr      = newParentMbr
+                             , nlMbr      = getMbrs $ (map lMbr allSiblings)
                              , children   = Leaves allSiblings
                              }
           where
             allSiblings = lsibs ++ (focus:rsibs)
-            newParentMbr = getMbr (lMbr focus) (nlMbr parentFocus)
             newParentLhv
               | newParentLhvUnsafe /= lLhv (last allSiblings) = error "hilbert out of order yo"
               | otherwise                                     = trace "hilbert in order yo" newParentLhvUnsafe
               where
                 newParentLhvUnsafe = maximum $ map lLhv allSiblings
 
+adjustTree :: ZNonleaf -> Nonleaf -> Root
+adjustTree = error "adjust tree"
+
+-- take in sorted hrects, return a leaf
+makeLeaf :: [HRect] -> Leaf
+makeLeaf someHRects = Leaf { lLhv = maximum $ map (\(HRect h _) -> h) someHRects -- could do with a check
+                           , lMbr = getMbrs $ map (\(HRect _ rect) -> rect) someHRects
+                           , hrects = someHRects
+                           }
+
 handleLeafOverflow :: Rect -> ZLeaf -> Root
-handleLeafOverflow rect znode = error "handle overflow"
+handleLeafOverflow rect (ZLeaf parent (lsibs, rsibs) self)
+  -- if any leaf has space, evenly redistribute all rectangles
+  | anyLeafHasSpace = zipup $ zipupLeaf (ZLeaf parent ([], bl1:bls) bl0)
+  -- if all leaves are full, make a new leaf, evenly distribute all rectangles among all leaves
+  -- take the leaf with new smallest hilbert value and make it the child of a new nonleaf node
+  -- call adjustTree with this new nonleaf node
+  | otherwise = adjustTree (zipupLeaf (ZLeaf parent ([], bls) bl1)) Nonleaf { nlLhv = lLhv bl0
+                                                                            , nlMbr = lMbr bl0
+                                                                            , children = Leaves [bl0]
+                                                                            }
+  where
+    anyLeafHasSpace = any (not . leafFull) allSiblings
+    
+    -- if any leaf has space, redistribute evenly
+    newNumberOfLeaves
+      | anyLeafHasSpace = length allSiblings
+      | otherwise       = length allSiblings + 1
+    
+    allSiblings = lsibs ++ (self:rsibs)
+    (bl0:bl1:bls) = map makeLeaf (evenlyDistribute newNumberOfLeaves newHRects)
+    newHRects = insertIntoHRects (fromRect rect) $ concat $ map hrects allSiblings
+    
 
 insert :: Rect -> Root -> Root
 insert rect root = insertInLeaf rect (chooseLeafFromRoot rect root)
@@ -124,9 +154,13 @@ insertInLeaf rect zleaf@(ZLeaf parent (leftSiblings, rightSiblings) oldleaf)
                    , lMbr = newMbr
                    , hrects = newHRects
                    }
-
-    newHRects = insertBy (\(HRect h0 _) (HRect h1 _) -> compare h0 h1) (fromRect rect) (hrects oldleaf)
+    newHRects = insertIntoHRects (fromRect rect) (hrects oldleaf)
     newMbr = getMbr rect (lMbr oldleaf)
+
+-- take a new hrect, inset it into a list of SORTED hrects
+-- the list returned is still sorted
+insertIntoHRects :: HRect -> [HRect] -> [HRect]
+insertIntoHRects = insertBy (\(HRect h0 _) (HRect h1 _) -> compare h0 h1) 
 
 -- choose the best sibling from the root, construct the zipper, and call zChooseLeaf
 chooseLeafFromRoot :: Rect -> Root -> ZLeaf
