@@ -51,7 +51,7 @@ leafFull (Leaf {hrects = hrects'})
 
 newHRTree :: [Rect] -> Root
 newHRTree [] = error "sorry, you have to insert something in me with non-zero length"
-newHRTree (rect0:rects) = foldr (\x acc -> insert x acc) firstRoot rects
+newHRTree (rect0:rects) = foldr insert firstRoot rects
   where
     firstRoot = zipup $ ZNonleaf Nothing [] firstNonleaf []
     firstNonleaf = Nonleaf { nlLhv = lLhv firstLeaf
@@ -84,8 +84,8 @@ zipupOnce (ZNonleaf (Just oldParentNode) lsibs focus rsibs) = newZNode
             allSiblings = lsibs ++ (focus:rsibs)
             newParentMbr = getMbr (nlMbr focus) (nlMbr parentFocus)
             newParentLhv
-              | newParentLhvUnsafe /= (nlLhv $ last allSiblings) = error "hilbert out of order yo"
-              | otherwise                                        = trace "hilbert in order yo" newParentLhvUnsafe
+              | newParentLhvUnsafe /= nlLhv (last allSiblings) = error "hilbert out of order yo"
+              | otherwise                                      = trace "hilbert in order yo" newParentLhvUnsafe
               where
                 newParentLhvUnsafe = maximum $ map nlLhv allSiblings
 
@@ -104,8 +104,8 @@ zipupLeaf (ZLeaf oldParentNode lsibs focus rsibs) = newZNode
             allSiblings = lsibs ++ (focus:rsibs)
             newParentMbr = getMbr (lMbr focus) (nlMbr parentFocus)
             newParentLhv
-              | newParentLhvUnsafe /= (lLhv $ last allSiblings) = error "hilbert out of order yo"
-              | otherwise                                       = trace "hilbert in order yo" newParentLhvUnsafe
+              | newParentLhvUnsafe /= lLhv (last allSiblings) = error "hilbert out of order yo"
+              | otherwise                                     = trace "hilbert in order yo" newParentLhvUnsafe
               where
                 newParentLhvUnsafe = maximum $ map lLhv allSiblings
 

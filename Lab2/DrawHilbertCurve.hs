@@ -14,6 +14,6 @@ main :: IO ()
 main = do
   args <- getArgs
   let nLevels
-        | length(args) > 0 = read (head args)
-        | otherwise        = 3 :: Int
+        | length args > 0 = read (head args)
+        | otherwise       = 3 :: Int
   drawHilbertCurve imageSize nLevels

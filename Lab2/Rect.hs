@@ -19,10 +19,10 @@ data Rect = Rect { rectMinX :: Int
                  }
 instance Show Rect where
   show rect = "Rect("++
-              (show $ rectMinX rect)++","++
-              (show $ rectMaxX rect)++","++
-              (show $ rectMinY rect)++","++
-              (show $ rectMaxY rect)++")"
+              show (rectMinX rect)++","++
+              show (rectMaxX rect)++","++
+              show (rectMinY rect)++","++
+              show (rectMaxY rect)++")"
 
 rectDims :: Rect -> (Int, Int)
 rectDims rect = (rectMaxX rect - rectMinX rect, rectMaxY rect - rectMinY rect)
@@ -40,7 +40,7 @@ drawRects rects imageSize = do
 
 
 r2p :: Float -> Int -> Rect -> Picture
-r2p maxCoord imageSize rect = color aquamarine $ lineLoop $ coords
+r2p maxCoord imageSize rect = color aquamarine $ lineLoop coords
   where
     coords :: [(Float, Float)]
     coords = map scaleCoords [ (rectMinX rect, rectMinY rect)
@@ -61,14 +61,14 @@ r2p maxCoord imageSize rect = color aquamarine $ lineLoop $ coords
 stringToRect :: Bool -> (String, Int) -> Rect
 stringToRect verbose (str, idx) = safeRect
   where
-    coords@[x1,y1,x2,y2,x3,y3,x4,y4] = (read $ '[':str++"]")
+    coords@[x1,y1,x2,y2,x3,y3,x4,y4] = read $ '[':str++"]"
     
     worstErr = min (sum (map abs [x1 - x2, x3 - x4, y2 - y3, y1 - y4]))
                    (sum (map abs [x2 - x3, x1 - x4, y1 - y2, y3 - y4]))
     
-    validCoords = or [ and [x1 == x2, x3 == x4, y2 == y3, y1 == y4]
-                     , and [x2 == x3, x1 == x4, y1 == y2, y3 == y4]
-                     ]
+    validCoords = and [x1 == x2, x3 == x4, y2 == y3, y1 == y4] ||
+                  and [x2 == x3, x1 == x4, y1 == y2, y3 == y4]
+
     rect = Rect { rectMinX = minimum [x1,x2,x3,x4]
                 , rectMaxX = maximum [x1,x2,x3,x4]
                 , rectMinY = minimum [y1,y2,y3,y4]
@@ -76,8 +76,8 @@ stringToRect verbose (str, idx) = safeRect
                 }
                       
     safeRect
-      | verbose && (not validCoords) = trace warningMsg rect
-      | otherwise                    = rect
+      | verbose && not validCoords = trace warningMsg rect
+      | otherwise                  = rect
       where
         warningMsg = "Fixing invalid coordinates found on line "++show idx++
                      ", diff: "++show worstErr++

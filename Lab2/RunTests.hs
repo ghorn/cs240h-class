@@ -19,7 +19,7 @@ instance Arbitrary HilbertVal where
   arbitrary = do
     n' <- arbitrary
     d' <- arbitrary
-    let n = (mod n' maxHilbertDim) + 1
+    let n = mod n' maxHilbertDim + 1
         d = mod d' (2^(2*n))
     return $ HilbertVal n d
 
@@ -30,7 +30,7 @@ instance Arbitrary HilbertXy where
     n' <- arbitrary
     x' <- arbitrary
     y' <- arbitrary
-    let n = (mod n' maxHilbertDim) + 1
+    let n = mod n' maxHilbertDim + 1
         x = mod x' (2^n)
         y = mod y' (2^n)
     return $ HilbertXy n (x,y)
@@ -50,8 +50,8 @@ main = do
   quickCheck $ \(HilbertXy n xy) -> W.xy2d n xy == xy2d n xy
   
   -- compare new and old makeHibertCurve implementations
-  let testMakeHilberts nMax = and $ map (\n -> S.makeHilbertCurve n == makeHilbertCurve n) [1..nMax]
-  putStrLn $ "\nmakeHilbertCurve matches Slow.makeHilbertCurve?: " ++ (show $ testMakeHilberts 5)
+  let testMakeHilberts nMax = all (\n -> S.makeHilbertCurve n == makeHilbertCurve n) [1..nMax]
+  putStrLn $ "\nmakeHilbertCurve matches Slow.makeHilbertCurve?: " ++ show (testMakeHilberts 5)
 
 --  sample (arbitrary :: Gen HilbertVal)
 --  sample (arbitrary :: Gen HilbertXy)

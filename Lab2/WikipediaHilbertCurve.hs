@@ -20,11 +20,11 @@ foreign import ccall unsafe "wikipediaHilbertCurve.h xy2d" c_xy2d :: CInt -> CIn
 
 safeToCInt :: Int -> CInt
 safeToCInt x
-  | and [toInteger x <= maxCInt, toInteger x >= minCInt] = fromIntegral x
+  | (toInteger x <= maxCInt) && (toInteger x >= minCInt) = fromIntegral x
   | otherwise = error "Error - safeToCInt detected overflow"
   where
-    maxCInt = toInteger $ (maxBound :: CInt)
-    minCInt = toInteger $ (minBound :: CInt)
+    maxCInt = toInteger (maxBound :: CInt)
+    minCInt = toInteger (minBound :: CInt)
 
 
 xy2d :: Int -> (Int, Int) -> Int

@@ -17,7 +17,7 @@ import Lab2.HilbertCoord
 drawHilbertCurve :: Int -> Int -> IO ()
 drawHilbertCurve imageSize n = do
   let hCoords = makeHilbertCurve n
-  let maxCoord = fromIntegral $ maximum $ (map hcX hCoords) ++ (map hcY hCoords)
+  let maxCoord = fromIntegral $ maximum $ map hcX hCoords ++ map hcY hCoords
 
       scaleCoord :: Int -> Float
       scaleCoord ui = 0.4*(fromIntegral imageSize)*(-1.0 + 2.0*(fromIntegral ui)/maxCoord)
