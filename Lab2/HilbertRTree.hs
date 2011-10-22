@@ -19,22 +19,20 @@ hilbertDim :: Int
 hilbertDim = 16 -- for max value of 65535
 
 
-newtype LHV = LHV Int deriving Show
-
 data HRect = HRect Int Rect deriving Show
-
-data Node = Leaf { lhv      :: Int
-                 , mbr      :: Rect
+data Children = Leaves [Leaf] | Nonleaves [Nonleaf] deriving Show
+data Leaf = Leaf { lLhv      :: Int
+                 , lMbr      :: Rect
                  , hrects   :: [HRect]
-                 }
-          | Nonleaf { lhv   :: Int
-                    , mbr     :: Rect
-                    , children  :: [Node]
-                    } deriving Show
+                 } deriving Show
+data Nonleaf = Nonleaf { nlLhv   :: Int
+                       , nlMbr     :: Rect
+                       , children  :: Children
+                       } deriving Show
+data Root = Root [Nonleaf] deriving Show
 
-data Root = Root [Node] deriving Show
-
-data ZNode = ZNode (Maybe ZNode) [Node] Node [Node] deriving Show
+data ZNonleaf = ZNonleaf (Maybe ZNonleaf) [Nonleaf] Nonleaf [Nonleaf]
+data ZLeaf = ZLeaf ZNonleaf [Leaf] Leaf [Leaf]
 
 hilbertValue :: Rect -> Int
 hilbertValue rect = xy2d hilbertDim (hx, hy)
@@ -45,9 +43,8 @@ hilbertValue rect = xy2d hilbertDim (hx, hy)
 fromRect :: Rect -> HRect
 fromRect rect = HRect (hilbertValue rect) rect
 
-isFull :: Node -> Bool
-isFull nl@(Nonleaf {}) = all isFull $ children nl
-isFull (Leaf {hrects = hrects'})
+leafFull :: Leaf -> Bool
+leafFull (Leaf {hrects = hrects'})
   | length hrects'  > cL = error "leaf somehow got too many entries, this is a bug"
   | length hrects' == cL = True
   | otherwise            = False
@@ -56,94 +53,101 @@ newHRTree :: [Rect] -> Root
 newHRTree [] = error "sorry, you have to insert something in me with non-zero length"
 newHRTree (rect0:rects) = foldr (\x acc -> insert x acc) firstRoot rects
   where
-    firstRoot = zipup $ ZNode Nothing [] firstLeaf []
-    firstLeaf = Leaf { lhv = hilbertValue rect0
-                     , mbr = rect0
-                     , hrects = [fromRect rect0]
-                     }
-                                           
-zipup :: ZNode -> Root
-zipup (ZNode Nothing lsibs focus rsibs) = Root $ lsibs ++ (focus:rsibs)
+    firstRoot = zipup $ ZNonleaf Nothing [] firstNonleaf []
+    firstNonleaf = Nonleaf { nlLhv = lLhv firstLeaf
+                           , nlMbr = lMbr firstLeaf
+                           , children = Leaves [firstLeaf]
+                           }
+      where
+        firstLeaf = Leaf { lLhv = hilbertValue rect0
+                         , lMbr = rect0
+                         , hrects = [fromRect rect0]
+                         }
+
+zipup :: ZNonleaf -> Root
+zipup (ZNonleaf Nothing lsibs focus rsibs) = Root $ lsibs ++ (focus:rsibs)
 zipup z = zipup $ zipupOnce z
                                            
--- take focus ZNode, return parent's ZNode updating new focus's mbr and lhv
-zipupOnce :: ZNode -> ZNode
-zipupOnce (ZNode Nothing _ _ _) = error "can't zip up nothing"
-zipupOnce (ZNode (Just oldParentZNode) lsibs focus rsibs) = parentZipper
+-- take focus NonleafNode, return parent's ZNode updating new focus's mbr and lhv
+zipupOnce :: ZNonleaf -> ZNonleaf
+zipupOnce (ZNonleaf Nothing _ _ _) = error "this should probably return self"
+zipupOnce (ZNonleaf (Just oldParentNode) lsibs focus rsibs) = newZNode
   where
-    ZNode grandparent parentLsibs parentFocus parentRsibs = oldParentZNode
-    parentZipper = ZNode grandparent parentLsibs newParent parentRsibs
-      
+    ZNonleaf grandparent parentLsibs parentFocus parentRsibs = oldParentNode
+    newZNode = ZNonleaf grandparent parentLsibs newNonleaf parentRsibs
       where
-        newParent = Nonleaf { lhv      = newParentLhv `seq` newParentLhv
-                            , mbr      = newParentMbr
-                            , children = allSiblings
-                            }
+        newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
+                             , nlMbr      = newParentMbr
+                             , children   = Nonleaves allSiblings
+                             }
           where
-            allSiblings = assertSameType allSiblingsUnsafe `seq` allSiblingsUnsafe
-              where
-                allSiblingsUnsafe = lsibs ++ (focus:rsibs)
-                assertSameType []  = True
-                assertSameType [_] = True
-                assertSameType xs
-                  | all (\x -> isLeaf (head xs) == isLeaf x) (tail xs) = True
-                  | otherwise = error "children are not all same type"
-                  where
-                    isLeaf :: Node -> Bool
-                    isLeaf (Leaf {})    = True
-                    isLeaf (Nonleaf {}) = False
-            newParentMbr = Rect { rectMinX = min (rectMinX $ mbr focus) (rectMinX $ mbr parentFocus)
-                                , rectMinY = min (rectMinY $ mbr focus) (rectMinY $ mbr parentFocus)
-                                , rectMaxX = max (rectMaxX $ mbr focus) (rectMaxX $ mbr parentFocus)
-                                , rectMaxY = max (rectMaxY $ mbr focus) (rectMaxY $ mbr parentFocus)
-                                }
+            allSiblings = lsibs ++ (focus:rsibs)
+            newParentMbr = getMbr (nlMbr focus) (nlMbr parentFocus)
             newParentLhv
-              | newParentLhvUnsafe /= (lhv $ last allSiblings) = error "hilbert out of order yo"
-              | otherwise                                      = trace "hilbert in order yo" newParentLhv
+              | newParentLhvUnsafe /= (nlLhv $ last allSiblings) = error "hilbert out of order yo"
+              | otherwise                                        = trace "hilbert in order yo" newParentLhvUnsafe
               where
-                newParentLhvUnsafe = maximum $ map lhv allSiblings
-                  
--- rect tried to insert in focus, but focus was full
-handleOverflow :: Rect -> ZNode -> Root
+                newParentLhvUnsafe = maximum $ map nlLhv allSiblings
+
+
+zipupLeaf :: ZLeaf -> ZNonleaf
+zipupLeaf (ZLeaf oldParentNode lsibs focus rsibs) = newZNode
+  where
+    ZNonleaf grandparent parentLsibs parentFocus parentRsibs = oldParentNode
+    newZNode = ZNonleaf grandparent parentLsibs newNonleaf parentRsibs
+      where
+        newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
+                             , nlMbr      = newParentMbr
+                             , children   = Leaves allSiblings
+                             }
+          where
+            allSiblings = lsibs ++ (focus:rsibs)
+            newParentMbr = getMbr (lMbr focus) (nlMbr parentFocus)
+            newParentLhv
+              | newParentLhvUnsafe /= (lLhv $ last allSiblings) = error "hilbert out of order yo"
+              | otherwise                                       = trace "hilbert in order yo" newParentLhvUnsafe
+              where
+                newParentLhvUnsafe = maximum $ map lLhv allSiblings
+
+handleOverflow :: Rect -> ZLeaf -> Root
 handleOverflow rect znode = undefined
 
 insert :: Rect -> Root -> Root
-insert rect root = insertInLeaf rect (chooseLeaf rect root)
+insert rect root = insertInLeaf rect (chooseLeafFromRoot rect root)
 
-insertInLeaf :: Rect -> ZNode -> Root
-insertInLeaf rect znode@(ZNode parent leftSiblings oldleaf rightSiblings)
-  | isFull oldleaf = handleOverflow rect znode
-  | otherwise      = zipup $ ZNode parent leftSiblings newleaf rightSiblings
+insertInLeaf :: Rect -> ZLeaf -> Root
+insertInLeaf rect zleaf@(ZLeaf parent leftSiblings oldleaf rightSiblings)
+  | leafFull oldleaf = handleOverflow rect zleaf
+  | otherwise        = zipup $ zipupLeaf $ ZLeaf parent leftSiblings newleaf rightSiblings
   where
-    newleaf = Leaf { lhv = maximum $ map (\(HRect h _) -> h) newHRects
-                   , mbr = newMbr
+    newleaf = Leaf { lLhv = maximum $ map (\(HRect h _) -> h) newHRects -- this could do a check
+                   , lMbr = newMbr
                    , hrects = newHRects
                    }
 
     newHRects = insertBy (\(HRect h0 _) (HRect h1 _) -> compare h0 h1) (fromRect rect) (hrects oldleaf)
-    newMbr = Rect { rectMinX = min (rectMinX rect) (rectMinX $ mbr oldleaf)
-                  , rectMinY = min (rectMinY rect) (rectMinY $ mbr oldleaf)
-                  , rectMaxX = max (rectMaxX rect) (rectMaxX $ mbr oldleaf)
-                  , rectMaxY = max (rectMaxY rect) (rectMaxY $ mbr oldleaf)
-                  }
+    newMbr = getMbr rect (lMbr oldleaf)
 
 -- choose the best sibling from the root, construct the zipper, and call zChooseLeaf
-chooseLeaf :: Rect -> Root -> ZNode
-chooseLeaf rect (Root topSiblings) = zChooseLeaf rect $ ZNode Nothing lsibs focus rsibs
+chooseLeafFromRoot :: Rect -> Root -> ZLeaf
+chooseLeafFromRoot rect (Root topSiblings) = chooseLeafFromZNonleaf rect $ ZNonleaf Nothing lsibs focus rsibs
   where
-    (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> lhv x > hilbertValue rect) topSiblings
+    (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> nlLhv x > hilbertValue rect) topSiblings
     
-zChooseLeaf :: Rect -> ZNode -> ZNode
--- return on finding a leaf
-zChooseLeaf _ zNode@(ZNode _ _ (Leaf {}) _) = zNode
--- normal search
-zChooseLeaf rect searchMe@(ZNode _ _ (Nonleaf {children = ch}) _) = ZNode (Just searchMe) lsibs focus rsibs
+chooseLeafFromZNonleaf :: Rect -> ZNonleaf -> ZLeaf
+-- return on finding a leaf node
+chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Leaves ch)}) _) = out
   where
-    (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> lhv x > hilbertValue rect) ch
+    out = ZLeaf searchme lsibs focus rsibs
+    (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> lLhv x > hilbertValue rect) ch
+-- normal search
+chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Nonleaves ch)}) _) = out
+  where
+    out = chooseLeafFromZNonleaf rect $ ZNonleaf (Just searchme) lsibs focus rsibs
+    (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> nlLhv x > hilbertValue rect) ch
 
 chooseLeafSplit :: ([a], [a]) -> ([a], a, [a])
 chooseLeafSplit ([], []) = error "can't chooseLeaf on an empty list"
 chooseLeafSplit ([focus'], []) = ([], focus', [])
 chooseLeafSplit (lsibsPlusFocus, []) = (init lsibsPlusFocus, last lsibsPlusFocus, [])
 chooseLeafSplit (lsibs', focus':rsibs') = (lsibs', focus', rsibs')
-

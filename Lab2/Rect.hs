@@ -6,6 +6,7 @@ module Lab2.Rect( Rect(..)
                 , loadRects
                 , drawRects
                 , rectDims
+                , getMbr
                 ) where
 
 import Graphics.Gloss
@@ -99,3 +100,11 @@ loadRects args' = do
   input <- readFile filename
 
   return $ map (stringToRect verbose) (zip (lines input) [1..])
+
+
+getMbr :: Rect -> Rect -> Rect
+getMbr a b = Rect { rectMinX = min (rectMinX a) (rectMinX b)
+                  , rectMinY = min (rectMinY a) (rectMinY b)
+                  , rectMaxX = max (rectMaxX a) (rectMaxX b)
+                  , rectMaxY = max (rectMaxY a) (rectMaxY b)
+                  }
