@@ -19,7 +19,7 @@ Executable lab1
 
 Executable lab2
   Main-is:           Lab2/Lab2.hs
-  Build-depends:     gloss
+  Build-depends:     gloss, time
   Ghc-options:       -O2 -dno-debug-output
 
 Executable drawHilbertCurve

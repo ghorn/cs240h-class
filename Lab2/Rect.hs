@@ -11,6 +11,7 @@ module Lab2.Rect( Rect(..)
                 ) where
 
 import Graphics.Gloss
+import Data.Time.Clock
 import Debug.Trace
 
 data Rect = Rect { rectMinX :: Int
@@ -98,7 +99,11 @@ loadRects args' = do
         | otherwise        = head args
   putStrLn $ "loading file \""++filename++"\""
   
-  input <- readFile filename
+  startTime <- getCurrentTime
+  input     <- readFile filename
+  endTime   <- length input `seq` getCurrentTime
+  let diffTime = (realToFrac $ diffUTCTime endTime startTime)::Double
+  putStrLn $ "loaded file in " ++ show diffTime ++ " seconds"
 
   return $ map (stringToRect verbose) (zip (lines input) [1..])
 
