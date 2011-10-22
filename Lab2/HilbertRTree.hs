@@ -33,7 +33,7 @@ instance HasLhv Child where
 
 class HasMbr a where
   mbr :: a -> Rect
-  
+
 instance HasMbr HRect where
   mbr (HRect _ r) = r
 instance HasMbr Nonleaf where
@@ -47,13 +47,15 @@ instance HasMbr Child where
 --class HasChildren a b where
 class HasChildren a b | a -> b where
   children :: a -> [b]
+  maxNumChildren :: a -> Int
   
 instance HasChildren Leaf HRect where
   children (Leaf node) = nodeChildren node
+  maxNumChildren _ = cL
 
 instance HasChildren Nonleaf Child where
   children (Nonleaf node) = nodeChildren node
-
+  maxNumChildren _ = cN
 
 insertByLhv :: HasLhv a => a -> [a] -> [a]
 insertByLhv = insertBy (\x0 x1 -> compare (lhv x0) (lhv x1))
@@ -93,18 +95,12 @@ makeNonleaf children' = Nonleaf $ Node { nodeLhv = maximum $ map lhv children'
                                        , nodeMbr = getMbrs $ map mbr children'
                                        , nodeChildren = children'
                                        }
-
-leafFull :: Leaf -> Bool
-leafFull leaf
-  | length (children leaf)  > cL = error "leaf somehow got too many entries, this is a bug"
-  | length (children leaf) == cL = True
-  | otherwise                    = False
-
-nonleafFull :: Nonleaf -> Bool
-nonleafFull nonleaf
-  | length (children nonleaf)  > cN = error "nonleaf somehow got too many children, this is a bug"
-  | length (children nonleaf) == cN = True
-  | otherwise                       = False
+                        
+isFull :: HasChildren a b => a -> Bool
+isFull node
+  | length (children node)  > (maxNumChildren node) = error "node somehow got too many entries, this is a bug"
+  | length (children node) == (maxNumChildren node) = True
+  | otherwise                                       = False
 
 newHRTree :: [Rect] -> Root
 newHRTree [] = error "sorry, you have to insert something in me with non-zero length"
@@ -142,7 +138,8 @@ zipupLeaf (ZLeaf oldParentNode (lsibs, rsibs) focus) = newZNode
             allSiblings = lsibs ++ (focus:rsibs)
 
 
-handleNonleafOverflow :: ZNonleaf -> Nonleaf -> Root
+--handleNonleafOverflow :: HasChildren a Child => ZNonleaf -> a -> Root
+--handleNonleafOverflow :: ZNonleaf -> Nonleaf -> Root
 handleNonleafOverflow (ZNonleaf parent (lsibs, rsibs) self) nn
   -- if there was space to redistribute, then do it
   | newNumberOfNonleaves <= cN = zipup (ZNonleaf parent ([], bl1:bls) bl0)
@@ -153,15 +150,13 @@ handleNonleafOverflow (ZNonleaf parent (lsibs, rsibs) self) nn
   where
     newNumberOfNonleaves
       -- if any nonleaf has space, don't add a node
-      | any (not . nonleafFull) allSiblings = length allSiblings
-      | otherwise                           = length allSiblings + 1
+      | any (not . isFull) allSiblings = length allSiblings
+      | otherwise                      = length allSiblings + 1
 
     allSiblings = lsibs ++ (self:rsibs)
     
     (bl0:bl1:bls) = map makeNonleaf (evenlyDistribute newNumberOfNonleaves newChildren)
-    newChildren :: [Child]
     newChildren = foldr insertByLhv oldChildren (children nn)
-    oldChildren :: [Child]
     oldChildren = concat $ map children allSiblings
 
 
@@ -179,17 +174,15 @@ adjustTree n@(ZNonleaf parent (lsibs, rsibs) self) nn
     allSiblings = lsibs ++ (self:rsibs)
     newNumberOfNonleaves
       -- if any nonleaf has space, don't add a node
-      | any (not . nonleafFull) allSiblings = length allSiblings
-      | otherwise                           = length allSiblings + 1
+      | any (not . isFull) allSiblings = length allSiblings
+      | otherwise                      = length allSiblings + 1
     
     (bl0:bl1:bls)
       -- if there was an extra space, simply insert the node
       | newNumberOfNonleaves < cN = insertByLhv nn allSiblings
       -- if there was not extra space, evenly redistribute all siblings
       | otherwise                 = map makeNonleaf (evenlyDistribute newNumberOfNonleaves newChildren)
-    newChildren :: [Child]
     newChildren = foldr insertByLhv oldChildren (children nn)
-    oldChildren :: [Child]
     oldChildren = concat $ map children allSiblings
     
 handleLeafOverflow :: ZLeaf -> HRect -> Root
@@ -203,8 +196,8 @@ handleLeafOverflow (ZLeaf parent (lsibs, rsibs) self) hrect
   where
     -- if any leaf has space, redistribute evenly
     newNumberOfLeaves
-      | any (not . leafFull) allSiblings = length allSiblings
-      | otherwise                        = length allSiblings + 1
+      | any (not . isFull) allSiblings = length allSiblings
+      | otherwise                      = length allSiblings + 1
     
     allSiblings = lsibs ++ (self:rsibs)
     (bl0:bl1:bls) = map makeLeaf (evenlyDistribute newNumberOfLeaves newHRects)
@@ -218,8 +211,8 @@ insert rect root = insertInLeaf hrect (chooseLeafFromRoot hrect root)
 
 insertInLeaf :: HRect -> ZLeaf -> Root
 insertInLeaf hrect zleaf@(ZLeaf parent (leftSiblings, rightSiblings) oldleaf)
-  | leafFull oldleaf = handleLeafOverflow zleaf hrect
-  | otherwise        = zipup $ zipupLeaf $ ZLeaf parent (leftSiblings, rightSiblings) newleaf
+  | isFull oldleaf = handleLeafOverflow zleaf hrect
+  | otherwise      = zipup $ zipupLeaf $ ZLeaf parent (leftSiblings, rightSiblings) newleaf
   where
     newleaf = makeLeaf newHRects
     newHRects = insertByLhv hrect (children oldleaf)
