@@ -31,8 +31,8 @@ data Nonleaf = Nonleaf { nlLhv   :: Int
                        } deriving Show
 data Root = Root [Nonleaf] deriving Show
 
-data ZNonleaf = ZNonleaf (Maybe ZNonleaf) [Nonleaf] Nonleaf [Nonleaf]
-data ZLeaf = ZLeaf ZNonleaf [Leaf] Leaf [Leaf]
+data ZNonleaf = ZNonleaf (Maybe ZNonleaf) ([Nonleaf], [Nonleaf]) Nonleaf
+data ZLeaf = ZLeaf ZNonleaf ([Leaf], [Leaf]) Leaf
 
 hilbertValue :: Rect -> Int
 hilbertValue rect = xy2d hilbertDim (hx, hy)
@@ -53,7 +53,7 @@ newHRTree :: [Rect] -> Root
 newHRTree [] = error "sorry, you have to insert something in me with non-zero length"
 newHRTree (rect0:rects) = foldr insert firstRoot rects
   where
-    firstRoot = zipup $ ZNonleaf Nothing [] firstNonleaf []
+    firstRoot = zipup $ ZNonleaf Nothing ([], []) firstNonleaf
     firstNonleaf = Nonleaf { nlLhv = lLhv firstLeaf
                            , nlMbr = lMbr firstLeaf
                            , children = Leaves [firstLeaf]
@@ -65,16 +65,16 @@ newHRTree (rect0:rects) = foldr insert firstRoot rects
                          }
 
 zipup :: ZNonleaf -> Root
-zipup (ZNonleaf Nothing lsibs focus rsibs) = Root $ lsibs ++ (focus:rsibs)
+zipup (ZNonleaf Nothing (lsibs, rsibs) focus) = Root $ lsibs ++ (focus:rsibs)
 zipup z = zipup $ zipupOnce z
                                            
 -- take focus NonleafNode, return parent's ZNode updating new focus's mbr and lhv
 zipupOnce :: ZNonleaf -> ZNonleaf
-zipupOnce (ZNonleaf Nothing _ _ _) = error "this should probably return self"
-zipupOnce (ZNonleaf (Just oldParentNode) lsibs focus rsibs) = newZNode
+zipupOnce (ZNonleaf Nothing _ _) = error "this should probably return self"
+zipupOnce (ZNonleaf (Just oldParentNode) (lsibs, rsibs) focus) = newZNode
   where
-    ZNonleaf grandparent parentLsibs parentFocus parentRsibs = oldParentNode
-    newZNode = ZNonleaf grandparent parentLsibs newNonleaf parentRsibs
+    ZNonleaf grandparent (parentLsibs, parentRsibs) parentFocus = oldParentNode
+    newZNode = ZNonleaf grandparent (parentLsibs, parentRsibs) newNonleaf
       where
         newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
                              , nlMbr      = newParentMbr
@@ -91,10 +91,10 @@ zipupOnce (ZNonleaf (Just oldParentNode) lsibs focus rsibs) = newZNode
 
 
 zipupLeaf :: ZLeaf -> ZNonleaf
-zipupLeaf (ZLeaf oldParentNode lsibs focus rsibs) = newZNode
+zipupLeaf (ZLeaf oldParentNode (lsibs, rsibs) focus) = newZNode
   where
-    ZNonleaf grandparent parentLsibs parentFocus parentRsibs = oldParentNode
-    newZNode = ZNonleaf grandparent parentLsibs newNonleaf parentRsibs
+    ZNonleaf grandparent (parentLsibs, parentRsibs) parentFocus = oldParentNode
+    newZNode = ZNonleaf grandparent (parentLsibs, parentRsibs) newNonleaf
       where
         newNonleaf = Nonleaf { nlLhv      = newParentLhv `seq` newParentLhv
                              , nlMbr      = newParentMbr
@@ -109,16 +109,16 @@ zipupLeaf (ZLeaf oldParentNode lsibs focus rsibs) = newZNode
               where
                 newParentLhvUnsafe = maximum $ map lLhv allSiblings
 
-handleOverflow :: Rect -> ZLeaf -> Root
-handleOverflow rect znode = undefined
+handleLeafOverflow :: Rect -> ZLeaf -> Root
+handleLeafOverflow rect znode = error "handle overflow"
 
 insert :: Rect -> Root -> Root
 insert rect root = insertInLeaf rect (chooseLeafFromRoot rect root)
 
 insertInLeaf :: Rect -> ZLeaf -> Root
-insertInLeaf rect zleaf@(ZLeaf parent leftSiblings oldleaf rightSiblings)
-  | leafFull oldleaf = handleOverflow rect zleaf
-  | otherwise        = zipup $ zipupLeaf $ ZLeaf parent leftSiblings newleaf rightSiblings
+insertInLeaf rect zleaf@(ZLeaf parent (leftSiblings, rightSiblings) oldleaf)
+  | leafFull oldleaf = handleLeafOverflow rect zleaf
+  | otherwise        = zipup $ zipupLeaf $ ZLeaf parent (leftSiblings, rightSiblings) newleaf
   where
     newleaf = Leaf { lLhv = maximum $ map (\(HRect h _) -> h) newHRects -- this could do a check
                    , lMbr = newMbr
@@ -130,20 +130,20 @@ insertInLeaf rect zleaf@(ZLeaf parent leftSiblings oldleaf rightSiblings)
 
 -- choose the best sibling from the root, construct the zipper, and call zChooseLeaf
 chooseLeafFromRoot :: Rect -> Root -> ZLeaf
-chooseLeafFromRoot rect (Root topSiblings) = chooseLeafFromZNonleaf rect $ ZNonleaf Nothing lsibs focus rsibs
+chooseLeafFromRoot rect (Root topSiblings) = chooseLeafFromZNonleaf rect $ ZNonleaf Nothing (lsibs, rsibs) focus
   where
     (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> nlLhv x > hilbertValue rect) topSiblings
     
 chooseLeafFromZNonleaf :: Rect -> ZNonleaf -> ZLeaf
 -- return on finding a leaf node
-chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Leaves ch)}) _) = out
+chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Leaves ch)})) = out
   where
-    out = ZLeaf searchme lsibs focus rsibs
+    out = ZLeaf searchme (lsibs, rsibs) focus
     (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> lLhv x > hilbertValue rect) ch
 -- normal search
-chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Nonleaves ch)}) _) = out
+chooseLeafFromZNonleaf rect searchme@(ZNonleaf _ _ (Nonleaf {children = (Nonleaves ch)})) = out
   where
-    out = chooseLeafFromZNonleaf rect $ ZNonleaf (Just searchme) lsibs focus rsibs
+    out = chooseLeafFromZNonleaf rect $ ZNonleaf (Just searchme) (lsibs, rsibs) focus
     (lsibs, focus, rsibs) = chooseLeafSplit $ break (\x -> nlLhv x > hilbertValue rect) ch
 
 chooseLeafSplit :: ([a], [a]) -> ([a], a, [a])
