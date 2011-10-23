@@ -15,7 +15,7 @@ main :: IO ()
 main = do
   args <- getArgs
   rects <- loadRects args
-  
+
   let fullHRTree = newTree rects
   print fullHRTree
   
