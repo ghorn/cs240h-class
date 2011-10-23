@@ -16,7 +16,7 @@ main = do
   args <- getArgs
   rects <- loadRects args
   
-  let fullHRTree = newHRTree rects
+  let fullHRTree = newTree rects
   print fullHRTree
   
 --  drawRects rects imageSize
