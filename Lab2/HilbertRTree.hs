@@ -9,14 +9,17 @@ module Lab2.HilbertRTree( newTree
 import Lab2.Rect
 import Lab2.HilbertCurve(xy2d)
 import Lab2.Misc(evenlyDistribute)
-import Data.List(insertBy)
+import Data.List(insertBy, intersperse, foldl')
 import Data.Function(on)
 import Data.Maybe
 import Debug.Trace
+import Text.Printf
+import System.IO.Unsafe
+
 
 cL,cN :: Int
-cL = 3
-cN = 4
+cL = 2
+cN = 3
 
 hilbertDim :: Int
 hilbertDim = 16 -- for max value of 65535
@@ -32,8 +35,14 @@ data Node = Node { nodeLhv :: Int
                  }
           | HRectChild HRect -- deriving Show
 instance Show Node where
-  show (HRectChild _) = " HRect"
-  show (Node nlhv nmbr nch) = "{lhv:" ++ show nlhv ++ ", mbr:" ++ show nmbr ++ ", children:" ++ show nch ++ "}"
+  --show (HRectChild _) = "H"
+--  show (HRectChild (HRect i _)) = (printf "r%.2g" ((fromIntegral i)::Double))
+  show (HRectChild (HRect i _)) = show i
+--  show (Node nlhv nmbr nch) = "{lhv:" ++ show nlhv ++ ", mbr:" ++ show nmbr ++ ", children:" ++ show nch ++ "}"
+--  show (Node _ _ nch) = "{"++ show nch ++ "}"
+  show (Node _ _ nch) = "N{"++ boo ++ "}"
+    where
+      boo = concat $ intersperse "," $ map show nch
 
 getNodeLhv :: Node -> Int
 getNodeLhv (Node {nodeLhv = ret}) = ret
@@ -46,7 +55,9 @@ getNodeMbr (HRectChild (HRect _ ret)) = ret
 data ZNode = ZNode { znodeParent    :: Maybe ZNode
                    , znodeSiblings :: ([Node],[Node])
                    , znodeFocus    :: Node
-                   } deriving Show
+                   }-- deriving Show
+instance Show ZNode where
+  show = show . znodeFocus
 
 getSiblingNodes :: ZNode -> ([Node], [Node])
 getSiblingNodes = znodeSiblings
@@ -94,13 +105,13 @@ adjustTree znode newNode
   | totalNumSiblings znode > cN = error "error (adjustTree): too many siblings somehow"
   
   -- if there is an extra space, simply insert the node by lhv
-  | totalNumSiblings znode < cN = zipupFull $ insertNodeIntoZNodeByLhv newNode safeZNode
+  | totalNumSiblings znode < cN = trace "adjustTree has space, inserting" $ zipupFull $ insertNodeIntoZNodeByLhv newNode safeZNode
   
   -- otherwise call handleNodeOverflow
-  | otherwise = handleNodeOverflow safeZNode newNode
+  | otherwise = trace "adjustTree has no space, calling handleNodeOverflow" $ handleNodeOverflow safeZNode newNode
   where
     safeZNode
-      | isNothing $ getParentZNode znode = showAdjustTreeSplit znode
+      | isNothing $ getParentZNode znode = znode
       | otherwise = znode
                 
 handleNodeOverflow :: ZNode -> Node -> ZNode
@@ -115,7 +126,7 @@ handleNodeOverflow znode newNode
   -- if a split occurs, evenly redistribute all siblings
   -- then take the node with new smallest hilbert value and make it the child of a new parent node
   -- merge this new split parent node with the rebalanced node with adjustTree
-  | otherwise = showHandleNodeOverflowSplitting adjustTree (zipupOnce $ makeZNode (getParentZNode znode) ([], bls) bl1) bl0
+  | otherwise = showHandleNodeOverflowSplitting $ adjustTree (zipupOnce $ makeZNode (getParentZNode znode) ([], bls) bl1) bl0
   where
     allOldSiblings = getAllSiblings znode
 
@@ -146,7 +157,8 @@ zipupFull znode
   | otherwise = case (length (getAllSiblings znode)) of 1 -> znode
                                                         _ -> newRoot
   where
-    newRoot = showRootSplit $ makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)
+    newRoot = showRootSplit $ trace ("old root: " ++ show znode ++ "\nnew root: " ++ show newRoot') newRoot'
+    newRoot' = makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)
 
 zipupOnce :: ZNode -> ZNode
 zipupOnce selfZNode 
@@ -171,7 +183,7 @@ fromRect rect = HRect (xy2d hilbertDim (hx, hy)) rect
 
 chooseLeaf :: HRect -> ZNode -> ZNode
 chooseLeaf hrect znode 
-  | isLeaf znode = znode
+  | isLeaf znode = trace ("chooseLeaf returning: "++show znode) znode
   | otherwise    = chooseLeaf hrect $ makeZNode (Just znode) (lsibs, rsibs) self
   where
     (lsibs, self, rsibs) = breakByLhv hrect $ getChildren znode
@@ -187,16 +199,22 @@ breakByLhv (HRect hrectLhv _) y = case break (\x -> getNodeLhv x > hrectLhv) y
 insertInLeaf :: ZNode -> HRect -> ZNode
 insertInLeaf leaf hrect
   -- check for errors
-  | length (getChildren leaf) > cL = assertIsLeaf `seq` error $ "error (insertInLeaf) - leaf overfull" ++ show (getChildren leaf) ++ "\nlength: "++show (length $ getChildren leaf)
+  | length (getChildren leaf) > cL = assertIsLeaf `seq` error $ "error (insertInLeaf) - leaf overfull:\n" ++ show (getChildren leaf) ++ "\nlength: "++show (length $ getChildren leaf)
+  
   -- if there is space for another hrect, insert it
   | length (getChildren leaf) < cL = assertIsLeaf `seq` showInsertInLeafNotSplitting $ zipupFull $ modifyZNode leaf (makeNode newChildren)
-  -- if there is no more space, make a new leaf node and call adjustTree
-  | otherwise = assertIsLeaf `seq` showInsertInLeafSplitting adjustTree leaf $ makeNode [HRectChild hrect]
+  
+  -- if there is no more space, resort children by hibert value
+  -- child with smallest hilbert value is new node
+  -- rest of children are old znode
+  -- call adjust tree
+  | otherwise = assertIsLeaf `seq` showInsertInLeafSplitting $ adjustTree (modifyZNode leaf (makeNode chs)) $ makeNode [ch0]
   where
-    newChildren = insertNodeByLhv (HRectChild hrect) (getChildren leaf)
+    newChildren@(ch0:chs) = insertNodeByLhv (HRectChild hrect) (getChildren leaf)
     assertIsLeaf
       | isLeaf leaf = True
       | otherwise   = error "insertInLeaf called on nonleaf"
+
 
 ---- take in sorted children nodes, return a node
 makeNode :: [Node] -> Node
@@ -207,22 +225,48 @@ makeNode someChildren = Node { nodeLhv = maximum $ map getNodeLhv someChildren
 
 newTree :: [Rect] -> ZNode
 newTree [] = error "sorry, you have to insert something in me with non-zero length"
-newTree (rect0:rects) = foldr insert firstRoot rects
+newTree (rect0:rects) = foldl' (flip insert) firstRoot rects
   where
     firstRoot = zipupFull $ makeZNode Nothing ([], []) $ makeNode [HRectChild $ fromRect rect0]
 
+--insert :: Rect -> ZNode -> ZNode
+--insert rect tree
+--  | length (getAllSiblings tree) /= 1 = error $ "uh oh, root has siblings in insert\n" ++ show tree
+--  | otherwise = trace ("-----------------------------inserting: "++ (printf "%.1g " (fromIntegral (hilbertValue rect) :: Double)) ++"----------------------\nbefore: " ++show tree++"\nafter: "++show newTree'++"\n\n") newTree'
+--  where
+--    newTree' = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
+--    hrect = fromRect rect
+
 insert :: Rect -> ZNode -> ZNode
-insert rect tree 
+insert rect tree
   | length (getAllSiblings tree) /= 1 = error $ "uh oh, root has siblings in insert\n" ++ show tree
-  | otherwise = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
-  where
-    hrect = fromRect rect
+  | otherwise = unsafePerformIO $ do
+    putStrLn $ "\n-----------------inserting: "++ (printf "%.2g " (fromIntegral (hilbertValue rect) :: Double)) ++"----------------------"
+    putStrLn $ "before: " ++show tree
+    
+    let newTree' = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
+        hrect = fromRect rect
+    
+    newTree' `seq` putStrLn $ "after: "++show newTree'
+    return newTree'
 
 
-showAdjustTreeSplit x = trace "adjustTree: splitting" x
-showHandleNodeOverflowNotSplitting = trace "handleNodeOverflow not splitting yo"
-showHandleNodeOverflowSplitting = trace "handleNodeOverflow splitting yo"
+
+showHandleNodeOverflowNotSplitting :: a -> a
+showHandleNodeOverflowSplitting :: a -> a
+showRootSplit :: a -> a
+showZipupOnceCalledOnRoot :: a -> a
+showInsertInLeafNotSplitting :: a -> a
+showInsertInLeafSplitting :: a -> a
+
+showHandleNodeOverflowNotSplitting = trace "handleNodeOverflow can redistribute"
+showHandleNodeOverflowSplitting = trace "handleNodeOverflow must split"
 showRootSplit = trace "root split"
 showZipupOnceCalledOnRoot = trace "zipupOnce called on root, returning root"
 showInsertInLeafNotSplitting = trace "insertInLeaf not splitting"
 showInsertInLeafSplitting = trace "insertInLeaf splitting"
+
+hilbertValue :: Rect -> Int
+hilbertValue r = blah $ fromRect r
+  where
+    blah (HRect i _) = i
