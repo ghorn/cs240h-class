@@ -30,7 +30,10 @@ data Node = Node { nodeLhv :: Int
                  , nodeMbr :: Rect
                  , nodeChildren :: [Node]
                  }
-          | HRectChild HRect deriving Show
+          | HRectChild HRect -- deriving Show
+instance Show Node where
+  show (HRectChild _) = " HRect"
+  show (Node nlhv nmbr nch) = "{lhv:" ++ show nlhv ++ ", mbr:" ++ show nmbr ++ ", children:" ++ show nch ++ "}"
 
 getNodeLhv :: Node -> Int
 getNodeLhv (Node {nodeLhv = ret}) = ret
@@ -97,7 +100,7 @@ adjustTree znode newNode
   | otherwise = handleNodeOverflow safeZNode newNode
   where
     safeZNode
-      | isNothing $ getParentZNode znode = trace "adjustTree: splitting" znode
+      | isNothing $ getParentZNode znode = showAdjustTreeSplit znode
       | otherwise = znode
                 
 handleNodeOverflow :: ZNode -> Node -> ZNode
@@ -107,20 +110,26 @@ handleNodeOverflow znode newNode
   | newNumberOfSiblings < cN     = error "error - handleNodeOverflow called when there is no overflow?"
   
   -- if it's possible to evenly redistribute siblings without splitting, do it
-  | newNumberOfSiblings == cN = trace "handleNodeOverflow not splitting yo" $ zipupFull $ makeZNode (getParentZNode znode) ([], bl1:bls) bl0
+  | newNumberOfSiblings == cN = showHandleNodeOverflowNotSplitting $ zipupFull $ makeZNode (getParentZNode znode) ([], bl1:bls) bl0
   
   -- if a split occurs, evenly redistribute all siblings
   -- then take the node with new smallest hilbert value and make it the child of a new parent node
   -- merge this new split parent node with the rebalanced node with adjustTree
-  | otherwise = trace "handleNodeOverflow splitting yo" $ adjustTree (zipupOnce $ makeZNode (getParentZNode znode) ([], bls) bl1) bl0
+  | otherwise = showHandleNodeOverflowSplitting adjustTree (zipupOnce $ makeZNode (getParentZNode znode) ([], bls) bl1) bl0
   where
     allOldSiblings = getAllSiblings znode
-    
+
     newNumberOfSiblings
       -- if any node has space, don't split
       | any (not . nodeFull) allOldSiblings = length allOldSiblings
       | otherwise                           = length allOldSiblings + 1
-
+      where
+        nodeFull :: Node -> Bool
+        nodeFull node
+          | length (nodeChildren node)  > cN = error "node somehow got too many entries, this is a bug"
+          | length (nodeChildren node) == cN = True
+          | otherwise                        = False
+    
     -- nodes after children redistribution:
     bl0:bl1:bls = map makeNode (evenlyDistribute newNumberOfSiblings newChildren)
       where
@@ -137,12 +146,11 @@ zipupFull znode
   | otherwise = case (length (getAllSiblings znode)) of 1 -> znode
                                                         _ -> newRoot
   where
-    newRoot = trace "root split" $ makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)
-
+    newRoot = showRootSplit $ makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)
 
 zipupOnce :: ZNode -> ZNode
 zipupOnce selfZNode 
-  | isNothing $ getParentZNode selfZNode = trace "zipupOnce called on root, returning root" selfZNode
+  | isNothing $ getParentZNode selfZNode = showZipupOnceCalledOnRoot selfZNode
   | otherwise = makeZNode grandParentZNode auntiesUnclesNodes updatedParentNode
   where
     grandParentZNode   = getParentZNode  $ fromJust $ getParentZNode selfZNode
@@ -159,12 +167,6 @@ fromRect rect = HRect (xy2d hilbertDim (hx, hy)) rect
   where
     hx = rectMinX rect + ((rectMaxX rect - rectMinX rect) `div` 2)
     hy = rectMinY rect + ((rectMaxY rect - rectMinY rect) `div` 2)
-
-nodeFull :: Node -> Bool
-nodeFull node
-  | length (nodeChildren node)  > cN = error "node somehow got too many entries, this is a bug"
-  | length (nodeChildren node) == cN = True
-  | otherwise                        = False
 
 
 chooseLeaf :: HRect -> ZNode -> ZNode
@@ -185,11 +187,11 @@ breakByLhv (HRect hrectLhv _) y = case break (\x -> getNodeLhv x > hrectLhv) y
 insertInLeaf :: ZNode -> HRect -> ZNode
 insertInLeaf leaf hrect
   -- check for errors
-  | length (getChildren leaf) > cL = assertIsLeaf `seq` error "error (insertInLeaf) - leaf overfull"
+  | length (getChildren leaf) > cL = assertIsLeaf `seq` error $ "error (insertInLeaf) - leaf overfull" ++ show (getChildren leaf) ++ "\nlength: "++show (length $ getChildren leaf)
   -- if there is space for another hrect, insert it
-  | length (getChildren leaf) < cL = assertIsLeaf `seq` trace "insertInLeaf not splitting" $ zipupFull $ modifyZNode leaf (makeNode newChildren)
+  | length (getChildren leaf) < cL = assertIsLeaf `seq` showInsertInLeafNotSplitting $ zipupFull $ modifyZNode leaf (makeNode newChildren)
   -- if there is no more space, make a new leaf node and call adjustTree
-  | otherwise = assertIsLeaf `seq` trace "insertInLeaf splitting" $ adjustTree leaf $ makeNode [HRectChild hrect]
+  | otherwise = assertIsLeaf `seq` showInsertInLeafSplitting adjustTree leaf $ makeNode [HRectChild hrect]
   where
     newChildren = insertNodeByLhv (HRectChild hrect) (getChildren leaf)
     assertIsLeaf
@@ -215,3 +217,12 @@ insert rect tree
   | otherwise = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
   where
     hrect = fromRect rect
+
+
+showAdjustTreeSplit x = trace "adjustTree: splitting" x
+showHandleNodeOverflowNotSplitting = trace "handleNodeOverflow not splitting yo"
+showHandleNodeOverflowSplitting = trace "handleNodeOverflow splitting yo"
+showRootSplit = trace "root split"
+showZipupOnceCalledOnRoot = trace "zipupOnce called on root, returning root"
+showInsertInLeafNotSplitting = trace "insertInLeaf not splitting"
+showInsertInLeafSplitting = trace "insertInLeaf splitting"
