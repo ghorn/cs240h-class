@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Lab2.HilbertRTree( newTree
+                        , makeNewTree
                         , insert
                         ) where
 
@@ -15,7 +16,8 @@ import Lab2.Debug
 
 import Data.List(foldl')
 import Data.Maybe
-import System.IO.Unsafe
+import Data.Time.Clock
+import System.IO.Unsafe -- for debug messages only
 
 
 -- The children have overflowed and passed in a newly split node.
@@ -169,6 +171,19 @@ newTree [] = error "sorry, you have to insert something in me with non-zero leng
 newTree (rect0:rects) = foldl' (flip insert) firstRoot rects
   where
     firstRoot = zipupFull $ makeZNode Nothing ([], []) $ makeLeaf [fromRect rect0]
+
+-- time the construction of a new tree
+-- print the time, return the tree
+makeNewTree :: [Rect] -> IO ZNode
+makeNewTree rects = do
+  startTime <- getCurrentTime
+  let tree = newTree rects
+  endTime   <- tree `seq` getCurrentTime
+  
+  let diffTime = (realToFrac $ diffUTCTime endTime startTime)::Double
+  putStrLn $ "constructed tree in " ++ show diffTime ++ " seconds"
+
+  return tree
 
 --insert :: Rect -> ZNode -> ZNode
 --insert rect tree

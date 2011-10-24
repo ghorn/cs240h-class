@@ -51,10 +51,11 @@ loadRects args' = do
   
   startTime <- getCurrentTime
   input     <- readFile filename
-  endTime   <- length input `seq` getCurrentTime
+  let rects = map (stringToRect verbose) (zip (lines input) [1..])
+  endTime   <- length rects `seq` getCurrentTime
   let diffTime = (realToFrac $ diffUTCTime endTime startTime)::Double
-  putStrLn $ "loaded file in " ++ show diffTime ++ " seconds"
+  putStrLn $ "loaded "++show (length rects)++" rectangles in " ++ show diffTime ++ " seconds"
 
-  return $ map (stringToRect verbose) (zip (lines input) [1..])
+  return rects
 
 

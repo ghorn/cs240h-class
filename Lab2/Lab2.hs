@@ -35,7 +35,8 @@ main = do
 --  let rectsIn = take 7 rects
 --  let rectsIn = map toRect [1..10]
 --  let rectsIn = take 7 rects
-  let fullHRTree = newTree rectsIn
-  print fullHRTree
+      
+--  drawRects rectsIn imageSize
   
-----  drawRects rects imageSize
+  fullHRTree <- makeNewTree rectsIn
+  putStrLn "finished"
