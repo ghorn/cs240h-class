@@ -10,25 +10,29 @@ import Graphics.Gloss
 
 drawRects :: [Rect] -> Int -> IO ()
 drawRects rects imageSize = do
-  let maxX = maximum $ map rectMaxX rects
-      maxY = maximum $ map rectMaxX rects
-      maxCoord = fromIntegral $ max maxX maxY
-    
-      myPicture :: Picture
-      myPicture = Pictures $ map (r2p maxCoord imageSize) rects
+  let myPicture :: Picture
+      myPicture = Pictures $ map (r2p (getMbrs rects) imageSize) rects
   
   displayInWindow "FFFFFFUUUUUUUUUUU" (imageSize,imageSize) (20,600) black myPicture
 
 
-r2p :: Float -> Int -> Rect -> Picture
-r2p maxCoord imageSize rect = color aquamarine $ lineLoop coords
+r2p :: Rect -> Int -> Rect -> Picture
+r2p mbr imageSize rect = color aquamarine $ lineLoop coords
   where
+    Rect { rectMaxX = maxX 
+         , rectMinX = minX
+         , rectMaxY = maxY
+         , rectMinY = minY
+         } = mbr
+      
+    maxCoord = fromIntegral $ max (maxX - minX) (maxY - minY)
+    
     coords :: [(Float, Float)]
-    coords = map scaleCoords [ (rectMinX rect, rectMinY rect)
-                             , (rectMinX rect, rectMaxY rect)
-                             , (rectMaxX rect, rectMaxY rect)
-                             , (rectMaxX rect, rectMinY rect)
-                             , (rectMinX rect, rectMinY rect)
+    coords = map scaleCoords [ (rectMinX rect - minX, rectMinY rect - minY)
+                             , (rectMinX rect - minX, rectMaxY rect - minY)
+                             , (rectMaxX rect - minX, rectMaxY rect - minY)
+                             , (rectMaxX rect - minX, rectMinY rect - minY)
+                             , (rectMinX rect - minX, rectMinY rect - minY)
                              ]
       where
         scaleCoords :: (Int, Int) -> (Float, Float)
