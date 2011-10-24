@@ -5,6 +5,7 @@
 module Main where
 
 import System.Environment(getArgs)
+import Lab2.LoadRects
 import Lab2.Rect
 import Lab2.HilbertCurve(d2xy)
 import Lab2.HilbertRTree
