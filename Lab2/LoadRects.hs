@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Lab2.LoadRects( loadRects
+                     , stringToRect
                      ) where
 
 import Lab2.Rect
@@ -28,12 +29,14 @@ stringToRect verbose (str, idx) = safeRect
                 }
                       
     safeRect
+      | verbose && not validCoords && idx == -1 = trace interactiveWarningMsg rect
       | verbose && not validCoords = trace warningMsg rect
       | otherwise                  = rect
       where
         warningMsg = "Fixing invalid coordinates found on line "++show idx++
                      ", diff: "++show worstErr++
                      ", coords: "++show coords
+        interactiveWarningMsg = "   (Bounding invalid rectangle)"
 
 
 -- Take command line arguments
