@@ -3,16 +3,23 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Lab2.Rect( Rect(..)
+                , HRect(..)
                 , loadRects
                 , drawRects
                 , rectDims
+                , fromRect
                 , getMbr
                 , getMbrs
                 ) where
 
+import Lab2.Config(hilbertDim)
+import Lab2.HilbertCurve(xy2d)
+
 import Graphics.Gloss
 import Data.Time.Clock
 import Debug.Trace
+
+data HRect = HRect Int Rect deriving Show
 
 data Rect = Rect { rectMinX :: Int
                  , rectMaxX :: Int
@@ -25,6 +32,12 @@ instance Show Rect where
               show (rectMaxX rect)++","++
               show (rectMinY rect)++","++
               show (rectMaxY rect)++")"
+
+fromRect :: Rect -> HRect
+fromRect rect = HRect (xy2d hilbertDim (hx, hy)) rect
+  where
+    hx = rectMinX rect + ((rectMaxX rect - rectMinX rect) `div` 2)
+    hy = rectMinY rect + ((rectMaxY rect - rectMinY rect) `div` 2)
 
 rectDims :: Rect -> (Int, Int)
 rectDims rect = (rectMaxX rect - rectMinX rect, rectMaxY rect - rectMinY rect)

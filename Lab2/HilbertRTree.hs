@@ -7,100 +7,20 @@ module Lab2.HilbertRTree( newTree
                         ) where
 
 import Lab2.Rect
-import Lab2.HilbertCurve(xy2d)
-import Lab2.Misc(evenlyDistribute)
+import Lab2.Utils
+import Lab2.Node
+import Lab2.ZNode
+import Lab2.Config
 import Lab2.Debug
 
-import Data.List(insertBy, intersperse, foldl')
-import Data.Function(on)
+import Data.List(foldl')
 import Data.Maybe
 import System.IO.Unsafe
 
 
-cL,cN :: Int
-cL = 2
-cN = 3
-
-hilbertDim :: Int
-hilbertDim = 16 -- for max value of 65535
-
-insertNodeByLhv :: Node -> [Node] -> [Node]
-insertNodeByLhv = insertBy (compare `on` getNodeLhv)
-
-insertHRectByLhv :: HRect -> [HRect] -> [HRect]
-insertHRectByLhv = insertBy (compare `on` (\(HRect h _) -> h))
-
-data HRect = HRect Int Rect deriving Show
-
-data Node = Node { nodeLhv :: Int
-                 , nodeMbr :: Rect
-                 , nodeChildren :: [Node]
-                 }
-          | Leaf { nodeLhv :: Int
-                 , nodeMbr :: Rect
-                 , leafHRects :: [HRect]
-                 } -- deriving Show
-instance Show Node where
-  show (Leaf {leafHRects = r}) = "L{"++(concat $ intersperse "," $ map (\(HRect i _) -> show i) r)++"}" 
-  show (Node _ _ nch) = "N{"++ (concat $ intersperse "," $ map show nch) ++ "}"
-
-getNodeLhv :: Node -> Int
-getNodeLhv = nodeLhv
-
-getNodeMbr :: Node -> Rect
-getNodeMbr = nodeMbr
-
-nodeFull :: Node -> Bool
-nodeFull (Node {nodeChildren = ch})
-  | length ch  > cN = error "nonleaf somehow got too many entries, this is a bug"
-  | length ch == cN = True
-  | otherwise       = False
-nodeFull (Leaf {leafHRects = ch})
-  | length ch  > cL = error "leaf somehow got too many entries, this is a bug"
-  | length ch == cL = True
-  | otherwise       = False
-
-
-data ZNode = ZNode { znodeParent    :: Maybe ZNode
-                   , znodeSiblings :: ([Node],[Node])
-                   , znodeFocus    :: Node
-                   } --deriving Show
-instance Show ZNode where
-  show = show . znodeFocus
-
-getSiblingNodes :: ZNode -> ([Node], [Node])
-getSiblingNodes = znodeSiblings
-getParentZNode :: ZNode -> Maybe ZNode
-getParentZNode = znodeParent
-getFocusNode :: ZNode -> Node
-getFocusNode = znodeFocus
-makeZNode :: Maybe ZNode -> ([Node], [Node]) -> Node -> ZNode
-makeZNode parent sibs focus = ZNode {znodeParent = parent, znodeSiblings = sibs, znodeFocus = focus}
-getChildren :: ZNode -> [Node]
-getChildren znode = nodeChildren $ znodeFocus znode
-
-
-getAllSiblings :: ZNode -> [Node]
-getAllSiblings znode = lsibs ++ (self:rsibs)
-  where
-    (lsibs, rsibs) = getSiblingNodes znode
-    self = getFocusNode znode
-  
-totalNumSiblings :: ZNode -> Int
-totalNumSiblings znode = length lsibs + length rsibs + 1
-  where
-    (lsibs, rsibs) = getSiblingNodes znode
-
-modifyZNode :: ZNode -> Node -> ZNode
-modifyZNode znode = makeZNode (getParentZNode znode) (getSiblingNodes znode)
-
-
-insertNodeIntoZNodeByLhv :: Node -> ZNode -> ZNode
-insertNodeIntoZNodeByLhv node znode = makeZNode (getParentZNode znode) ([], rsibs) self
-  where
-    self:rsibs = insertNodeByLhv node (getAllSiblings znode)
-
-
+-- The children have overflowed and passed in a newly split node.
+-- If there is space for another sibling, insert this node in proper hilbert order.
+-- If there is no space, call handleOverflow
 adjustTree :: ZNode -> Node -> ZNode
 adjustTree znode newNode
   -- check for errors
@@ -115,11 +35,18 @@ adjustTree znode newNode
     safeZNode
       | isNothing $ getParentZNode znode = znode
       | otherwise = znode
-                
+
+
+-- A child could not be inserted in the desired node.
+-- If any sibling has an empty slot, redistribute all children among all siblings in proper hilbert order
+-- If all siblings are full, create new sibling and redistribute all children among all siblings,
+-- then take the smallest sibling and make it a new node and pass to adjustTree
 handleOverflow :: ZNode -> Node -> ZNode
 handleOverflow znode newNode
-  -- check for errors
+  -- check for uncaught overflow
   | newNumberOfSiblings > cN + 1 = error "error (handleOverflow): too many siblings somehonw"
+
+  -- check for bad call
   | newNumberOfSiblings < cN     = error "error - handleOverflow called when there is no overflow?"
   
   -- if it's possible to evenly redistribute siblings without splitting, do it
@@ -160,10 +87,12 @@ redistributeChildren allOldSiblings@((Leaf {}):_) newSibling@(Leaf {}) newNumber
 redistributeChildren _ _ _ = error "can't mix and match Nodes/Leaves in redistributeChildren"
 
 
+-- take the zipper node at whatever level and zip it up until it reaches the top, return the result
+-- if the root has split, create a new parent and zip up once more then return
 zipupFull :: ZNode -> ZNode
 zipupFull znode
   -- keep calling zipupOnce until the top is reached
-  | isJust (znodeParent znode) = zipupFull $ zipupOnce znode
+  | isJust (getParentZNode znode) = zipupFull $ zipupOnce znode
   -- if root hasn't split, return root
   -- if root has split, make old root and siblings the children of a new root
   | otherwise = case (length (getAllSiblings znode)) of 1 -> znode
@@ -172,6 +101,8 @@ zipupFull znode
     newRoot = showRootSplit $ trace ("old root: " ++ show znode ++ "\nnew root: " ++ show newRoot') newRoot'
     newRoot' = makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)
 
+
+-- take the zipper node and zip up one level, return parent zipper node
 zipupOnce :: ZNode -> ZNode
 zipupOnce selfZNode 
   | isNothing $ getParentZNode selfZNode = showZipupOnceCalledOnRoot selfZNode
@@ -186,60 +117,53 @@ zipupOnce selfZNode
             selfNode = getFocusNode selfZNode
             (lsibsNodes, rsibsNodes) = getSiblingNodes selfZNode
 
-fromRect :: Rect -> HRect
-fromRect rect = HRect (xy2d hilbertDim (hx, hy)) rect
-  where
-    hx = rectMinX rect + ((rectMaxX rect - rectMinX rect) `div` 2)
-    hy = rectMinY rect + ((rectMaxY rect - rectMinY rect) `div` 2)
 
-
+-- Take in hrect and zipper node. Descend recursively through tree until a leaf is reached.
+-- At each node, descend to the child node which has smallest LHV still bigger than hrect
 chooseLeaf :: HRect -> ZNode -> ZNode
-chooseLeaf _ znode@(ZNode {znodeFocus = (Leaf {})}) = trace ("chooseLeaf returning: " ++show znode) znode
-chooseLeaf hrect znode = chooseLeaf hrect $ makeZNode (Just znode) (lsibs, rsibs) self
+chooseLeaf hrect znode
+  | isLeaf znode = trace ("chooseLeaf returning: " ++show znode) znode
+  | otherwise    = chooseLeaf hrect $ makeZNode (Just znode) (lsibs, rsibs) self
   where
     (lsibs, self, rsibs) = breakByLhv hrect $ getChildren znode
+      where
+        breakByLhv :: HRect -> [Node] -> ([Node], Node, [Node])
+        breakByLhv (HRect hrectLhv _) y = case break (\x -> nodeLhv x > hrectLhv) y
+                             of ([], [])               -> error "can't breakByLhv on an empty list"
+                                ([focus], [])          -> ([], focus, [])
+                                (lsibsPlusFocus, [])   -> (init lsibsPlusFocus, last lsibsPlusFocus, [])
+                                (lsibs', focus:rsibs') -> (lsibs', focus, rsibs')
 
-breakByLhv :: HRect -> [Node] -> ([Node], Node, [Node])
-breakByLhv (HRect hrectLhv _) y = case break (\x -> getNodeLhv x > hrectLhv) y
-                     of ([], [])              -> error "can't breakByLhv on an empty list"
-                        ([focus], [])         -> ([], focus, [])
-                        (lsibsPlusFocus, [])  -> (init lsibsPlusFocus, last lsibsPlusFocus, [])
-                        (lsibs, focus:rsibs)  -> (lsibs, focus, rsibs)
 
-
+-- take a znode that is a leaf (chosen with chooseLeaf) and an hrect
+-- insert the hrect into the zleaf if there is space
+-- if there is not space, resort the children by LHV, then turn the smallest child into a new node
+-- call adjustTree to insert the new node into the parent
 insertInLeaf :: ZNode -> HRect -> ZNode
-insertInLeaf (ZNode {znodeFocus = Node {}}) _ = error "insertInLeaf called on nonleaf znode"
 insertInLeaf leaf hrect
-  -- check for errors
-  | length oldChildren > cL = error $ "error (insertInLeaf) - leaf overfull:\n" ++ show (getChildren leaf) ++ "\nlength: "++show (length $ getChildren leaf)
-  
-  -- if there is space for another hrect, insert it
-  | length oldChildren < cL = showInsertInLeafNotSplitting $ zipupFull $ modifyZNode leaf (makeLeaf newChildren)
-  
-  -- if there is no more space, resort children by hibert value
-  -- child with smallest hilbert value is new node
-  -- rest of children are old znode
-  -- call adjust tree
-  | otherwise = showInsertInLeafSplitting $ adjustTree (modifyZNode leaf (makeLeaf chs)) $ makeLeaf [ch0]
+  | not (isLeaf leaf) = error "insertInLeaf called on nonleaf znode"
+  | otherwise = safeInsertInLeaf
   where
-    oldChildren = leafHRects $ znodeFocus leaf
-    newChildren@(ch0:chs) = insertHRectByLhv hrect oldChildren
+    safeInsertInLeaf
+      -- check for uncaught overflow
+      | length oldChildren > cL = error $ "error (insertInLeaf) - leaf overfull:\n" ++ show (getChildren leaf) ++ "\nlength: "++show (length $ getChildren leaf)
+      
+      -- if there is space for another hrect, insert it
+      | length oldChildren < cL = showInsertInLeafNotSplitting $ zipupFull $ modifyZNode leaf (makeLeaf newChildren)
+      
+      -- if there is no more space, resort children by hibert value
+      -- child with smallest hilbert value is new node
+      -- rest of children are old znode
+      -- call adjust tree
+      | otherwise = showInsertInLeafSplitting $ adjustTree (modifyZNode leaf (makeLeaf chs)) $ makeLeaf [ch0]
+      where
+        oldChildren = leafHRects $ getFocusNode leaf
+        newChildren@(ch0:chs) = insertHRectByLhv hrect oldChildren
 
 
----- take in sorted children hrects, return a leaf
-makeLeaf :: [HRect] -> Node
-makeLeaf someChildren = Leaf { nodeLhv = maximum $ map (\(HRect h _) -> h) someChildren
-                             , nodeMbr = getMbrs $ map (\(HRect _ r) -> r) someChildren
-                             , leafHRects = someChildren
-                             }
-
----- take in sorted children nodes, return a node
-makeNode :: [Node] -> Node
-makeNode someChildren = Node { nodeLhv = maximum $ map getNodeLhv someChildren
-                             , nodeMbr = getMbrs $ map getNodeMbr someChildren
-                             , nodeChildren = someChildren
-                             }
-
+-- take a bunch of rectangles
+-- create a tree out of the first rectangle
+-- fold insert over the remaining rectangles using tree as the accumulator
 newTree :: [Rect] -> ZNode
 newTree [] = error "sorry, you have to insert something in me with non-zero length"
 newTree (rect0:rects) = foldl' (flip insert) firstRoot rects
@@ -254,6 +178,10 @@ newTree (rect0:rects) = foldl' (flip insert) firstRoot rects
 --    newTree' = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
 --    hrect = fromRect rect
 
+
+-- take a rectangle and a tree, convert the rectangle into an hrect (rectangle with hilbert value)
+-- call chooseleaf to find the proper znode to insert in
+-- call insertInLeaf on this leaf
 insert :: Rect -> ZNode -> ZNode
 insert rect tree
   | length (getAllSiblings tree) /= 1 = error $ "uh oh, root has siblings in insert\n" ++ show tree
@@ -268,7 +196,7 @@ insert rect tree
     return newTree'
 
 
-
+-- suppressible debugging messages
 showHandleOverflowNotSplitting :: a -> a
 showHandleOverflowSplitting :: a -> a
 showRootSplit :: a -> a
