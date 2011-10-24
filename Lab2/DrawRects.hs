@@ -17,13 +17,13 @@ drawRects rects imageSize = do
 
 
 r2p :: Rect -> Int -> Rect -> Picture
-r2p mbr imageSize rect = color aquamarine $ lineLoop coords
+r2p mbr' imageSize rect = color aquamarine $ lineLoop coords
   where
     Rect { rectMaxX = maxX 
          , rectMinX = minX
          , rectMaxY = maxY
          , rectMinY = minY
-         } = mbr
+         } = mbr'
       
     maxCoord = fromIntegral $ max (maxX - minX) (maxY - minY)
     

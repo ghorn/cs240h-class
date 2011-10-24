@@ -25,6 +25,8 @@ instance Show Node where
   show (Leaf {leafHRects = r}) = "L{"++(concat $ intersperse "," $ map (\(HRect i _) -> show i) r)++"}" 
   show (Node _ _ nch) = "N{"++ (concat $ intersperse "," $ map show nch) ++ "}"
 
+instance CanIntersect Node where
+  mbr = nodeMbr
 
 nodeFull :: Node -> Bool
 nodeFull (Node {nodeChildren = ch})

@@ -4,9 +4,11 @@
 
 module Lab2.Rect( Rect(..)
                 , HRect(..)
+                , CanIntersect(..)
                 , fromRect
                 , getMbr
                 , getMbrs
+                , intersect
                 ) where
 
 import Lab2.Config(hilbertDim)
@@ -46,3 +48,21 @@ getMbrs :: [Rect] -> Rect
 getMbrs [] = error "can't getMbrs on empty list"
 getMbrs [r] = r
 getMbrs (x:xs) = getMbr x (getMbrs xs)
+
+
+-- things which can intersect each other
+class CanIntersect a where
+  mbr :: a -> Rect
+instance CanIntersect Rect where
+  mbr x = x
+instance CanIntersect HRect where
+  mbr (HRect _ r) = r
+
+-- return true if two rectangles intersect
+intersect :: (CanIntersect a, CanIntersect b) => a -> b -> Bool
+intersect a b = xIntersect && yIntersect
+  where
+    xIntersect = aMaxX > bMinX && bMaxX > aMinX
+    yIntersect = aMaxY > bMinY && bMaxY > aMinY
+    Rect { rectMinX = aMinX, rectMaxX = aMaxX, rectMinY = aMinY, rectMaxY = aMaxY } = mbr a
+    Rect { rectMinX = bMinX, rectMaxX = bMaxX, rectMinY = bMinY, rectMaxY = bMaxY } = mbr b

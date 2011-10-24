@@ -7,31 +7,29 @@ module Main where
 import System.Environment(getArgs)
 import Lab2.LoadRects
 import Lab2.Rect
-import Lab2.HilbertCurve(d2xy)
+import Lab2.ZNode(ZNode)
 import Lab2.HilbertRTree
-import Lab2.Config
 
-toRect :: Int -> Rect
-toRect hi = Rect { rectMinX = hx - 1
-                 , rectMaxX = hx + 1
-                 , rectMinY = hy - 1
-                 , rectMaxY = hy + 1
-                 }
-  where
-    (hx,hy) = d2xy hilbertDim hi
 
+query :: ZNode -> Rect -> IO ()
+query tree rect = do
+  let (numIntersect, rIntersect) = search tree rect
+  if numIntersect > 0
+    then do putStrLn $ "Found " ++ show numIntersect ++ " matches. Here are some of them:"
+            mapM_ print $ take 5 rIntersect
+    else do putStrLn "No matches found"
+  
 
 main :: IO ()
 main = do
   args <- getArgs
   rects <- loadRects args
   
-  let rectsIn = rects
---  let rectsIn = take 7 rects
---  let rectsIn = map toRect [1..10]
---  let rectsIn = take 7 rects
-      
---  drawRects rectsIn imageSize
-  
-  fullHRTree <- makeNewTree rectsIn
-  putStrLn "finished"
+  tree <- makeNewTree rects
+  query tree $ Rect { rectMinX = 424
+                    , rectMaxX = 2433
+                    , rectMinY = 234
+                    , rectMaxY = 1233
+                    }
+
+--  drawRects rects imageSize

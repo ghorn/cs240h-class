@@ -5,6 +5,7 @@
 module Lab2.HilbertRTree( newTree
                         , makeNewTree
                         , insert
+                        , search
                         ) where
 
 import Lab2.Rect
@@ -18,7 +19,6 @@ import Data.List(foldl')
 import Data.Maybe
 import Data.Time.Clock
 import System.IO.Unsafe -- for debug messages only
-
 
 -- The children have overflowed and passed in a newly split node.
 -- If there is space for another sibling, insert this node in proper hilbert order.
@@ -185,13 +185,15 @@ makeNewTree rects = do
 
   return tree
 
---insert :: Rect -> ZNode -> ZNode
---insert rect tree
---  | length (getAllSiblings tree) /= 1 = error $ "uh oh, root has siblings in insert\n" ++ show tree
---  | otherwise = trace ("-----------------------------inserting: "++ (printf "%.1g " (fromIntegral (hilbertValue rect) :: Double)) ++"----------------------\nbefore: " ++show tree++"\nafter: "++show newTree'++"\n\n") newTree'
---  where
---    newTree' = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
---    hrect = fromRect rect
+
+-- recursively search the tree for entries which intersect a query rectangle
+search :: ZNode -> Rect -> (Int, [Rect])
+search tree rect = (length rects, rects)
+  where
+    rects = concatMap searchNode $ filter (intersect rect) (getChildren tree)
+      where
+        searchNode (Leaf {leafHRects = hrects}) = map (\(HRect _ r) -> r) hrects
+        searchNode (Node {nodeChildren = ch}) = concatMap searchNode $ filter (intersect rect) ch
 
 
 -- take a rectangle and a tree, convert the rectangle into an hrect (rectangle with hilbert value)
