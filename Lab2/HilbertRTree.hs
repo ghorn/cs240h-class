@@ -9,11 +9,11 @@ module Lab2.HilbertRTree( newTree
 import Lab2.Rect
 import Lab2.HilbertCurve(xy2d)
 import Lab2.Misc(evenlyDistribute)
+import Lab2.Debug
+
 import Data.List(insertBy, intersperse, foldl')
 import Data.Function(on)
 import Data.Maybe
-import Debug.Trace
-import Text.Printf
 import System.IO.Unsafe
 
 
@@ -41,18 +41,8 @@ data Node = Node { nodeLhv :: Int
                  , leafHRects :: [HRect]
                  } -- deriving Show
 instance Show Node where
-  --show (HRectChild _) = "H"
---  show (HRectChild (HRect i _)) = (printf "r%.2g" ((fromIntegral i)::Double))
-  show (Leaf {leafHRects = r}) = "L{"++boo++"}" 
-    where
-      boo = concat $ intersperse "," $ map poo r
-        where
-          poo (HRect i _) = show i
---  show (Node nlhv nmbr nch) = "{lhv:" ++ show nlhv ++ ", mbr:" ++ show nmbr ++ ", children:" ++ show nch ++ "}"
---  show (Node _ _ nch) = "{"++ show nch ++ "}"
-  show (Node _ _ nch) = "N{"++ boo ++ "}"
-    where
-      boo = concat $ intersperse "," $ map show nch
+  show (Leaf {leafHRects = r}) = "L{"++(concat $ intersperse "," $ map (\(HRect i _) -> show i) r)++"}" 
+  show (Node _ _ nch) = "N{"++ (concat $ intersperse "," $ map show nch) ++ "}"
 
 getNodeLhv :: Node -> Int
 getNodeLhv = nodeLhv
@@ -268,13 +258,13 @@ insert :: Rect -> ZNode -> ZNode
 insert rect tree
   | length (getAllSiblings tree) /= 1 = error $ "uh oh, root has siblings in insert\n" ++ show tree
   | otherwise = unsafePerformIO $ do
-    putStrLn $ "\n-----------------inserting: "++ (printf "%.2g " (fromIntegral (hilbertValue rect) :: Double)) ++"----------------------"
-    putStrLn $ "before: " ++show tree
+    dbgPutStrLn $ "\n-----------------inserting: "++ show (hilbertValue rect) ++"----------------------"
+    dbgPutStrLn $ "before: " ++show tree
     
     let newTree' = zipupFull $ insertInLeaf (chooseLeaf hrect tree) hrect
         hrect = fromRect rect
     
-    newTree' `seq` putStrLn $ "after: "++show newTree'
+    newTree' `seq` dbgPutStrLn $ "after: "++show newTree'
     return newTree'
 
 

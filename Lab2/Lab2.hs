@@ -30,11 +30,11 @@ main = do
   args <- getArgs
   rects <- loadRects args
   
+  let rectsIn = rects
 --  let rectsIn = take 7 rects
-  let rectsIn = map toRect [1..10]
+--  let rectsIn = map toRect [1..10]
 --  let rectsIn = take 7 rects
   let fullHRTree = newTree rectsIn
-  fullHRTree `seq` putStrLn "\n\n\nfinished\n\n"
   print fullHRTree
   
 ----  drawRects rects imageSize
