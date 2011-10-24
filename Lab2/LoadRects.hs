@@ -36,7 +36,7 @@ stringToRect verbose (str, idx) = safeRect
         warningMsg = "Fixing invalid coordinates found on line "++show idx++
                      ", diff: "++show worstErr++
                      ", coords: "++show coords
-        interactiveWarningMsg = "   (Bounding invalid rectangle)"
+        interactiveWarningMsg = "   (using bounds of invalid rectangle)"
 
 
 -- Take command line arguments

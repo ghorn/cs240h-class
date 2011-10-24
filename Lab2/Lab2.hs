@@ -38,5 +38,3 @@ main = do
                  else do line <- getLine
                          putStrLn ""
                          query tree line
-
---  drawRects rects imageSize

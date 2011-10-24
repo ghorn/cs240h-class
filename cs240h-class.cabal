@@ -19,12 +19,17 @@ Executable lab1
 
 Executable lab2
   Main-is:           Lab2/Lab2.hs
-  Build-depends:     gloss, time
+  Build-depends:     time
   Ghc-options:       -O2 -dno-debug-output
 
 Executable drawHilbertCurve
   Main-is:           Lab2/DrawHilbertCurve.hs
   Build-depends:     gloss
+  Ghc-options:       -O2 -dno-debug-output
+
+Executable drawRects
+  Main-is:           Lab2/DrawSomeRects.hs
+  Build-depends:     time, gloss
   Ghc-options:       -O2 -dno-debug-output
 
 Executable runTests

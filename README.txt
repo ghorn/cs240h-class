@@ -6,12 +6,25 @@ Author: Greg Horn
   >> cabal configure
   >> cabal build
 
+
 ############### Running Lab 2 ##################
+To run the main program:
   >> ./dist/build/lab2/lab2 someFile.txt
+
+To run the hilbert curve quickCheck program:
+  >> ./dist/build/runTests/runTests
+
+To draw a hilbert curve of order 5
+  >> ./dist/build/drawHilbertCurve/drawHilbertCurve 5
+
+To draw all the rectangles in a file
+  >> ./dist/build/drawRects/drawRects someFile.txt
+
 
 ############### Running Lab 1 ##################
   >> ./dist/build/lab1/lab1 someFile.txt someOtherFile.txt asManyAsYouWant.txt
   >> cat * | ./dist/build/lab1/lab1
+
 
 ############### ISSUES WITH LAB 1 ################
 The only problem I know about but didn't solve is that the histogram is aligned
