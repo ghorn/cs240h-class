@@ -9,12 +9,7 @@ import Lab2.LoadRects
 import Lab2.Rect
 import Lab2.HilbertCurve(d2xy)
 import Lab2.HilbertRTree
-
-imageSize :: Num a => a
-imageSize = 500
-
-hilbertDim :: Int
-hilbertDim = 16
+import Lab2.Config
 
 toRect :: Int -> Rect
 toRect hi = Rect { rectMinX = hx - 1
