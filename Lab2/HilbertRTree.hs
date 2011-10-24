@@ -97,8 +97,8 @@ zipupFull znode
   | isJust (getParentZNode znode) = zipupFull $ zipupOnce znode
   -- if root hasn't split, return root
   -- if root has split, make old root and siblings the children of a new root
-  | otherwise = case (length (getAllSiblings znode)) of 1 -> znode
-                                                        _ -> newRoot
+  | otherwise = case length (getAllSiblings znode) of 1 -> znode
+                                                      _ -> newRoot
   where
     newRoot = showRootSplit $ trace ("old root: " ++ show znode ++ "\nnew root: " ++ show newRoot') newRoot'
     newRoot' = makeZNode Nothing ([], []) $ makeNode (getAllSiblings znode)

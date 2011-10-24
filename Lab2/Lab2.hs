@@ -21,7 +21,7 @@ query tree queryString = do
   if numIntersect > 0
     then do putStrLn $ "\n   Found " ++ show numIntersect ++ " matches. Here are some of them:"
             mapM_ (\x -> putStrLn $ "   "++show x) $ take 5 rIntersect
-    else do putStrLn "\n   No matches found"
+    else putStrLn "\n   No matches found"
 
 
 main :: IO ()
@@ -34,7 +34,7 @@ main = do
                hFlush stdout
                eof <- hIsEOF stdin
                if eof
-                 then do exitSuccess
+                 then exitSuccess
                  else do line <- getLine
                          putStrLn ""
                          query tree line

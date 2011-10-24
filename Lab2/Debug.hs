@@ -14,10 +14,9 @@ debuggingInfoOn = False
 dbgPutStrLn :: String -> IO ()
 dbgPutStrLn
   | debuggingInfoOn = putStrLn
-  | otherwise       = (\_ -> return ())
+  | otherwise       = \_ -> return ()
 
 trace :: String -> a -> a
 trace msg x = blah `seq` x
   where
-    blah = unsafePerformIO $ do
-      dbgPutStrLn msg
+    blah = unsafePerformIO $ dbgPutStrLn msg

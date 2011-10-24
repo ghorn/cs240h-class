@@ -11,7 +11,7 @@ module Lab2.Node( Node(..)
 import Lab2.Config
 import Lab2.Rect
 
-import Data.List(intersperse)
+import Data.List(intercalate)
 
 data Node = Node { nodeLhv :: Int
                  , nodeMbr :: Rect
@@ -22,8 +22,8 @@ data Node = Node { nodeLhv :: Int
                  , leafHRects :: [HRect]
                  } -- deriving Show
 instance Show Node where
-  show (Leaf {leafHRects = r}) = "L{"++(concat $ intersperse "," $ map (\(HRect i _) -> show i) r)++"}" 
-  show (Node _ _ nch) = "N{"++ (concat $ intersperse "," $ map show nch) ++ "}"
+  show (Leaf {leafHRects = r}) = "L{"++intercalate "," (map (\(HRect i _) -> show i) r)++"}" 
+  show (Node _ _ nch) = "N{"++ intercalate "," (map show nch) ++ "}"
 
 instance CanIntersect Node where
   mbr = nodeMbr
