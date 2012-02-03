@@ -26,7 +26,13 @@ drawHilbertCurve imageSize n = do
       myPicture :: Picture
       myPicture = color aquamarine $ line coords
 
-  displayInWindow "FFFFFFUUUUUUUUUUU" (imageSize,imageSize) (20,600) black myPicture
+  display 
+    (InWindow
+     "hilbert curve"         -- window title
+     (imageSize, imageSize)  -- window size
+     (20, 600))              -- window position
+    black                    -- background color
+    myPicture                -- picture to display
 
 
 makeHilbertCurve :: Int -> [HilbertCoord]

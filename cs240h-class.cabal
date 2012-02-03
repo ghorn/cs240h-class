@@ -24,12 +24,12 @@ Executable lab2
 
 Executable drawHilbertCurve
   Main-is:           Lab2/DrawHilbertCurve.hs
-  Build-depends:     gloss
+  Build-depends:     gloss >= 1.6
   Ghc-options:       -O2 -dno-debug-output
 
 Executable drawRects
   Main-is:           Lab2/DrawSomeRects.hs
-  Build-depends:     time, gloss
+  Build-depends:     time, gloss >= 1.6
   Ghc-options:       -O2 -dno-debug-output
 
 Executable runTests

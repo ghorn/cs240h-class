@@ -13,7 +13,13 @@ drawRects rects imageSize = do
   let myPicture :: Picture
       myPicture = Pictures $ map (r2p (getMbrs rects) imageSize) rects
   
-  displayInWindow "FFFFFFUUUUUUUUUUU" (imageSize,imageSize) (20,600) black myPicture
+  display 
+    (InWindow
+     "hilbert curve"         -- window title
+     (imageSize, imageSize)  -- window size
+     (20, 600))              -- window position
+    black                    -- background color
+    myPicture                -- picture to display
 
 
 r2p :: Rect -> Int -> Rect -> Picture
